@@ -1600,6 +1600,16 @@ def reinitialiser():
         options = request.form.getlist('options')
 
         try:
+            if 'prestations' in options:
+                from database import EvenementMateriel, EvenementTechnicien
+                RecuPaiement.query.delete()
+                DepensePrestation.query.delete()
+                PrestationArchivee.query.delete()
+                EvenementMateriel.query.delete()
+                EvenementTechnicien.query.delete()
+                Evenement.query.delete()
+                db.session.commit()
+
             if 'factures' in options:
                 LigneFacture.query.delete()
                 Paiement.query.delete()
@@ -1618,6 +1628,15 @@ def reinitialiser():
                 Service.query.delete()
                 db.session.commit()
 
+            if 'materiels' in options:
+                Materiel.query.delete()
+                Fournisseur.query.delete()
+                db.session.commit()
+
+            if 'techniciens' in options:
+                Technicien.query.delete()
+                db.session.commit()
+
             flash('✅ Réinitialisation effectuée avec succès ! L\'application est prête pour une utilisation réelle.', 'success')
 
         except Exception as e:
@@ -1628,13 +1647,19 @@ def reinitialiser():
 
     # Stats actuelles pour afficher ce qui sera supprimé
     return render_template('reinitialiser.html',
-        username      = session['username'],
-        role          = session['role'],
-        nb_factures   = Facture.query.count(),
-        nb_operations = Operation.query.count(),
-        nb_clients    = Client.query.count(),
-        nb_services   = Service.query.filter_by(actif=True).count(),
-        nb_paiements  = Paiement.query.count(),
+        username         = session['username'],
+        role             = session['role'],
+        nb_factures      = Facture.query.count(),
+        nb_operations    = Operation.query.count(),
+        nb_clients       = Client.query.count(),
+        nb_services      = Service.query.filter_by(actif=True).count(),
+        nb_paiements     = Paiement.query.count(),
+        nb_prestations   = Evenement.query.count(),
+        nb_depenses      = DepensePrestation.query.count(),
+        nb_recus         = RecuPaiement.query.count(),
+        nb_materiels     = Materiel.query.count(),
+        nb_fournisseurs  = Fournisseur.query.count(),
+        nb_techniciens   = Technicien.query.count(),
     )
 
 
@@ -1651,14 +1676,19 @@ def sauvegarde():
         return redirect(url_for('dashboard'))
 
     return render_template('sauvegarde.html',
-        username      = session['username'],
-        role          = session['role'],
-        nb_factures   = Facture.query.count(),
-        nb_operations = Operation.query.count(),
-        nb_clients    = Client.query.count(),
-        nb_services   = Service.query.count(),
-        nb_paiements  = Paiement.query.count(),
-        nb_params     = Parametres.query.count(),
+        username         = session['username'],
+        role             = session['role'],
+        nb_factures      = Facture.query.count(),
+        nb_operations    = Operation.query.count(),
+        nb_clients       = Client.query.count(),
+        nb_services      = Service.query.count(),
+        nb_paiements     = Paiement.query.count(),
+        nb_params        = Parametres.query.count(),
+        nb_prestations   = Evenement.query.count(),
+        nb_depenses      = DepensePrestation.query.count(),
+        nb_recus         = RecuPaiement.query.count(),
+        nb_materiels     = Materiel.query.count(),
+        nb_techniciens   = Technicien.query.count(),
     )
 
 

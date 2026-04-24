@@ -261,6 +261,26 @@
                 <div class="num">{{ nb_services }}</div>
                 <div class="lbl">Services</div>
             </div>
+            <div class="stat-item">
+                <div class="ico">📅</div>
+                <div class="num">{{ nb_prestations }}</div>
+                <div class="lbl">Prestations</div>
+            </div>
+            <div class="stat-item">
+                <div class="ico">💸</div>
+                <div class="num">{{ nb_depenses }}</div>
+                <div class="lbl">Dépenses</div>
+            </div>
+            <div class="stat-item">
+                <div class="ico">🧑‍🔧</div>
+                <div class="num">{{ nb_techniciens }}</div>
+                <div class="lbl">Techniciens</div>
+            </div>
+            <div class="stat-item">
+                <div class="ico">📦</div>
+                <div class="num">{{ nb_materiels }}</div>
+                <div class="lbl">Matériels</div>
+            </div>
         </div>
     </div>
 
@@ -308,6 +328,36 @@
                     <div class="opt-desc">Supprime la liste des services et tarifs (vous devrez les recréer)</div>
                 </div>
                 <div class="opt-count">{{ nb_services }} service(s)</div>
+            </div>
+
+            <div class="option-item" id="opt-prestations" onclick="toggleOption('prestations')">
+                <input type="checkbox" name="options" value="prestations" id="chk-prestations">
+                <div class="opt-icon" style="background:#f0fdf4;">📅</div>
+                <div>
+                    <div class="opt-nom">Prestations & Agenda</div>
+                    <div class="opt-desc">Supprime tous les événements, dépenses, archives et reçus de prestations</div>
+                </div>
+                <div class="opt-count">{{ nb_prestations }} prestation(s) · {{ nb_depenses }} dépense(s) · {{ nb_recus }} reçu(s)</div>
+            </div>
+
+            <div class="option-item" id="opt-materiels" onclick="toggleOption('materiels')">
+                <input type="checkbox" name="options" value="materiels" id="chk-materiels">
+                <div class="opt-icon" style="background:#ede9fe;">📦</div>
+                <div>
+                    <div class="opt-nom">Matériels & Fournisseurs</div>
+                    <div class="opt-desc">Supprime tout le catalogue de matériels et les fournisseurs enregistrés</div>
+                </div>
+                <div class="opt-count">{{ nb_materiels }} matériel(s) · {{ nb_fournisseurs }} fournisseur(s)</div>
+            </div>
+
+            <div class="option-item" id="opt-techniciens" onclick="toggleOption('techniciens')">
+                <input type="checkbox" name="options" value="techniciens" id="chk-techniciens">
+                <div class="opt-icon" style="background:#fef3c7;">🧑‍🔧</div>
+                <div>
+                    <div class="opt-nom">Techniciens</div>
+                    <div class="opt-desc">Supprime tous les techniciens et leur historique d'assignation</div>
+                </div>
+                <div class="opt-count">{{ nb_techniciens }} technicien(s)</div>
             </div>
 
             <!-- Bouton tout sélectionner -->
@@ -365,8 +415,10 @@
         verifierConfirmation();
     }
 
+    const ALL_OPTIONS = ['prestations','factures','operations','clients','services','materiels','techniciens'];
+
     function toutSelectionner() {
-        ['factures','operations','clients','services'].forEach(id => {
+        ALL_OPTIONS.forEach(id => {
             document.getElementById('chk-' + id).checked = true;
             document.getElementById('opt-' + id).classList.add('checked');
         });
@@ -374,7 +426,7 @@
     }
 
     function toutDeselectionner() {
-        ['factures','operations','clients','services'].forEach(id => {
+        ALL_OPTIONS.forEach(id => {
             document.getElementById('chk-' + id).checked = false;
             document.getElementById('opt-' + id).classList.remove('checked');
         });

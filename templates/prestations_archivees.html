@@ -253,11 +253,10 @@
             </div>
             <div style="display:flex; gap:8px;">
                 {% if evt %}
-                <a href="/agenda/fiche-pdf/{{ arch.evenement_id }}"
-                   target="_blank" class="btn btn-sm btn-outline-danger" style="font-size:.76rem;"
-                   onclick="event.stopPropagation();">
+                <button onclick="event.stopPropagation(); ouvrirFichePDFArchive({{ arch.evenement_id }})"
+                   class="btn btn-sm btn-outline-danger" style="font-size:.76rem;">
                     <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
-                </a>
+                </button>
                 {% endif %}
             </div>
         </div>
@@ -293,10 +292,10 @@
             <small id="archModalMeta" style="color:rgba(255,255,255,.45); font-size:.72rem;"></small>
         </div>
         <div style="display:flex; gap:8px; align-items:center;">
-            <a id="archModalPDF" href="#" target="_blank"
+            <button id="archModalPDF" onclick="ouvrirFichePDFArchiveModal()"
                class="btn btn-sm" style="background:#e94560;color:#fff;border:none;font-size:.78rem;border-radius:7px;">
                 <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
-            </a>
+            </button>
             <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
         </div>
     </div>
@@ -373,6 +372,18 @@
 </style>
 
 <script>
+function ouvrirFichePDFArchive(evtId) {
+    const url = '/agenda/fiche-pdf/' + evtId;
+    fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=Fiche%20PDF')
+        .catch(() => {});
+}
+
+let archEvtIdCourant = null;
+function ouvrirFichePDFArchiveModal() {
+    if (!archEvtIdCourant) return;
+    ouvrirFichePDFArchive(archEvtIdCourant);
+}
+
 function switchArchTab(nom, btn) {
     document.querySelectorAll('.tab-arch-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-modal-btn').forEach(b => b.classList.remove('active'));
@@ -381,6 +392,7 @@ function switchArchTab(nom, btn) {
 }
 
 function voirDetailArchive(evtId, titre) {
+    archEvtIdCourant = evtId;
     // Reset onglets
     document.querySelectorAll('.tab-arch-content').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-modal-btn').forEach(b => b.classList.remove('active'));
