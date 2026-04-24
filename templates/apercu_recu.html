@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ recu.numero }} — {{ recu.beneficiaire }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --accent: {{ params.couleur_principale if params else '#e94560' }};
+            --dark: #1a1a2e; --gray: #6b7280; --border: #e5e7eb; --light: #f9fafb;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #eef0f4; font-family: 'Segoe UI', Arial, sans-serif; color: #374151; }
+
+        /* ── TOOLBAR ── */
+        .toolbar { background: #0f0f1e; padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid var(--accent); position: sticky; top: 0; z-index: 100; }
+        .toolbar .brand { color: #fff; font-weight: 700; font-size: .92rem; }
+        .toolbar .brand em { color: var(--accent); font-style: normal; }
+        .toolbar .brand small { display: block; font-size: .68rem; color: rgba(255,255,255,.35); font-weight: 400; }
+        .tb-btns { display: flex; gap: 8px; }
+        .btn-tb { border: none; padding: 7px 15px; border-radius: 8px; font-size: .8rem; cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 600; text-decoration: none; transition: opacity .15s; }
+        .btn-tb:hover { opacity: .85; }
+        .btn-back  { background: rgba(255,255,255,.12); color: #fff; }
+        .btn-print { background: #6b7280; color: #fff; }
+        .btn-save  { background: var(--accent); color: #fff; }
+
+        /* ── PAGE ── */
+        .page-wrap { max-width: 680px; margin: 28px auto 60px; padding: 0 16px; }
+        .recu-doc { background: #fff; border-radius: 4px; box-shadow: 0 2px 20px rgba(0,0,0,.09); overflow: hidden; }
+        .top-band { height: 6px; background: linear-gradient(90deg, var(--accent) 0%, #6c5ce7 50%, var(--accent) 100%); }
+        .recu-inner { padding: 36px 44px 40px; }
+
+        /* ── EN-TÊTE ── */
+        .entete { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .logo-zone img { height: 60px; width: auto; object-fit: contain; margin-bottom: 8px; }
+        .logo-placeholder { width: 54px; height: 54px; border-radius: 12px; background: linear-gradient(135deg, var(--accent), #6c5ce7); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.4rem; margin-bottom: 8px; }
+        .company-name { font-size: 1.1rem; font-weight: 800; color: var(--dark); }
+        .company-tag  { font-size: .72rem; color: var(--gray); margin-top: 2px; }
+        .company-contacts { margin-top: 8px; font-size: .72rem; color: #555; }
+        .company-contacts div { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+        .company-contacts i { color: var(--accent); font-size: .74rem; }
+
+        .titre-zone { text-align: right; }
+        .doc-label { font-size: .64rem; text-transform: uppercase; letter-spacing: .14em; color: var(--gray); font-weight: 700; }
+        .doc-title { font-size: 1.5rem; font-weight: 900; color: var(--dark); line-height: 1.1; margin-top: 2px; }
+        .doc-num   { font-size: .9rem; color: var(--accent); font-weight: 700; margin-top: 4px; }
+        .doc-date  { font-size: .74rem; color: var(--gray); margin-top: 3px; }
+        .type-badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 14px; border-radius: 20px; font-size: .76rem; font-weight: 700; margin-top: 8px; }
+        .badge-bulletin { background: #f5f3ff; color: #6c5ce7; }
+        .badge-recu     { background: #fef3c7; color: #92400e; }
+
+        .sep { height: 3px; border-radius: 2px; margin: 0 0 22px; background: linear-gradient(90deg, var(--accent), #6c5ce7, transparent); }
+
+        /* ── BÉNÉFICIAIRE ── */
+        .benef-box { background: var(--light); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; padding: 14px 18px; margin-bottom: 22px; display: inline-block; min-width: 280px; }
+        .benef-label { font-size: .63rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin-bottom: 4px; }
+        .benef-nom  { font-size: 1.05rem; font-weight: 800; color: var(--dark); }
+        .benef-role { font-size: .78rem; color: var(--gray); margin-top: 3px; }
+
+        /* ── SECTION HEADER ── */
+        .section-header { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-radius: 10px; margin-bottom: 12px; }
+        .section-header.paie    { background: linear-gradient(135deg, var(--accent), #c0392b); }
+        .section-header.details { background: linear-gradient(135deg, var(--dark), #2d3756); }
+        .section-icon  { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; color: #fff; font-size: .9rem; flex-shrink: 0; }
+        .section-label { font-size: .88rem; font-weight: 700; color: #fff; }
+        .section-sub   { font-size: .7rem; color: rgba(255,255,255,.7); margin-top: 1px; }
+
+        /* ── GRILLE SALAIRE ── */
+        .salaire-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+        .sal-cell { background: var(--light); border: 1px solid var(--border); border-radius: 9px; padding: 13px 16px; }
+        .sal-label { font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--gray); font-weight: 700; margin-bottom: 5px; }
+        .sal-value { font-size: 1.1rem; font-weight: 800; color: var(--dark); }
+        .sal-cell.total { background: linear-gradient(135deg, var(--dark), #2d3756); grid-column: 1/-1; }
+        .sal-cell.total .sal-label { color: rgba(255,255,255,.6); }
+        .sal-cell.total .sal-value { color: #fff; font-size: 1.4rem; }
+
+        /* ── TABLE DÉTAILS PRIMES ── */
+        .primes-table { width: 100%; border-collapse: collapse; margin-bottom: 22px; font-size: .84rem; }
+        .primes-table thead tr { background: var(--dark); }
+        .primes-table thead th { padding: 9px 13px; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: #fff; font-weight: 600; text-align: left; }
+        .primes-table tbody tr { border-bottom: 1px solid var(--border); }
+        .primes-table tbody tr:nth-child(even) { background: #fafafa; }
+        .primes-table tbody td { padding: 10px 13px; }
+
+        /* ── SIGNATURE ── */
+        .signature-zone { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 28px; padding-top: 16px; border-top: 1px solid var(--border); }
+        .sig-text  { font-size: .82rem; color: var(--gray); font-style: italic; max-width: 280px; line-height: 1.6; }
+        .sig-wrap  { text-align: center; }
+        .sig-name  { font-size: .85rem; font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+        .sig-box   { width: 140px; height: 56px; border: 1.5px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #d1d5db; }
+        .sig-label { font-size: .66rem; color: #9ca3af; margin-top: 4px; }
+
+        .footer-doc { text-align: center; margin-top: 20px; font-size: .7rem; color: #9ca3af; line-height: 1.6; }
+
+        /* ── PRINT ── */
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { background: #fff !important; }
+            .toolbar { display: none !important; }
+            .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+            .recu-doc { box-shadow: none !important; border-radius: 0 !important; }
+            .recu-inner { padding: 20px 32px; }
+            .section-header.paie    { background: linear-gradient(135deg, var(--accent), #c0392b) !important; }
+            .section-header.details { background: linear-gradient(135deg, #1a1a2e, #2d3756) !important; }
+            @page { margin: 8mm; size: A4; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- TOOLBAR -->
+<div class="toolbar d-print-none">
+    <div class="brand">
+        🎵 {{ params.nom_entreprise if params else 'KS Production' }} — <em>{{ recu.type_recu }}</em>
+        <small>{{ recu.numero }} · {{ recu.beneficiaire }}</small>
+    </div>
+    <div class="tb-btns">
+        <button class="btn-tb btn-back" onclick="fermerFenetre()"><i class="bi bi-arrow-left"></i> Retour</button>
+        <button class="btn-tb btn-print" onclick="window.print()"><i class="bi bi-printer"></i> Imprimer</button>
+        <button class="btn-tb btn-save" id="btnSave" onclick="enregistrerPDF()"><i class="bi bi-file-earmark-pdf"></i> Enregistrer PDF</button>
+    </div>
+</div>
+
+<!-- PAGE -->
+<div class="page-wrap" id="zonePDF">
+<div class="recu-doc">
+    <div class="top-band"></div>
+    <div class="recu-inner">
+
+        <!-- EN-TÊTE -->
+        <div class="entete">
+            <div class="logo-zone">
+                {% if params and params.logo_filename %}
+                    <img src="/static/uploads/{{ params.logo_filename }}" alt="Logo">
+                {% else %}
+                    <div class="logo-placeholder">🎵</div>
+                {% endif %}
+                <div class="company-name">{{ params.nom_entreprise if params else 'KS Production' }}</div>
+                <div class="company-tag">{{ params.slogan if params else "Studio d'Enregistrement & Sonorisation" }}</div>
+                {% if params %}
+                <div class="company-contacts">
+                    {% if params.telephone %}<div><i class="bi bi-telephone-fill"></i> {{ params.telephone }}</div>{% endif %}
+                    {% if params.email %}<div><i class="bi bi-envelope-fill"></i> {{ params.email }}</div>{% endif %}
+                    {% if params.adresse %}<div><i class="bi bi-geo-alt-fill"></i> {{ params.adresse }}</div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="titre-zone">
+                <div class="doc-label">Document officiel</div>
+                <div class="doc-title">
+                    {% if recu.type_recu == 'Bulletin Salaire' %}BULLETIN<br>DE SALAIRE{% else %}REÇU DE<br>PAIEMENT{% endif %}
+                </div>
+                <div class="doc-num">{{ recu.numero }}</div>
+                <div class="doc-date">{{ recu.date.strftime('%d/%m/%Y') }}</div>
+                {% if recu.type_recu == 'Bulletin Salaire' %}
+                    <span class="type-badge badge-bulletin"><i class="bi bi-file-earmark-person"></i> Bulletin Salaire</span>
+                {% else %}
+                    <span class="type-badge badge-recu"><i class="bi bi-receipt"></i> Reçu Prestation</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- BÉNÉFICIAIRE -->
+        <div class="benef-box">
+            <div class="benef-label">Bénéficiaire</div>
+            <div class="benef-nom">{{ recu.beneficiaire }}</div>
+            {% if tech %}
+            <div class="benef-role">
+                <i class="bi bi-briefcase me-1"></i>{{ tech.role or tech.specialite or '' }}
+                &nbsp;·&nbsp;
+                <span style="font-weight:700; color:{{ '#6c5ce7' if tech.statut_emploi == 'Salarié' else '#92400e' }};">
+                    {{ tech.statut_emploi or 'Temporaire' }}
+                </span>
+            </div>
+            {% endif %}
+            {% if recu.mois %}
+            <div style="font-size:.74rem; color:var(--accent); font-weight:600; margin-top:4px;">
+                <i class="bi bi-calendar3 me-1"></i>Période : {{ recu.mois }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- SECTION RÉCAPITULATIF -->
+        <div class="section-header paie">
+            <div class="section-icon"><i class="bi bi-cash-stack"></i></div>
+            <div>
+                <div class="section-label">Récapitulatif du paiement</div>
+                <div class="section-sub">Détail des montants</div>
+            </div>
+        </div>
+
+        <div class="salaire-grid">
+            {% if recu.type_recu == 'Bulletin Salaire' %}
+            <div class="sal-cell">
+                <div class="sal-label"><i class="bi bi-calendar-month me-1"></i>Salaire de base</div>
+                <div class="sal-value">{{ "{:,.0f}".format(recu.salaire_base).replace(',', ' ') }} FCFA</div>
+            </div>
+            <div class="sal-cell">
+                <div class="sal-label"><i class="bi bi-star me-1"></i>Total primes</div>
+                <div class="sal-value" style="color:#6c5ce7;">{{ "{:,.0f}".format(recu.total_primes).replace(',', ' ') }} FCFA</div>
+            </div>
+            {% else %}
+            <div class="sal-cell" style="grid-column:1/-1;">
+                <div class="sal-label"><i class="bi bi-star me-1"></i>Montant de la prime / rémunération</div>
+                <div class="sal-value" style="color:#6c5ce7;">{{ "{:,.0f}".format(recu.total_primes).replace(',', ' ') }} FCFA</div>
+            </div>
+            {% endif %}
+            <div class="sal-cell total">
+                <div class="sal-label">💰 TOTAL NET À PAYER</div>
+                <div class="sal-value">{{ "{:,.0f}".format(recu.total_net).replace(',', ' ') }} FCFA</div>
+            </div>
+        </div>
+
+        <!-- DÉTAIL DES PRIMES (si plusieurs) -->
+        {% if primes %}
+        <div class="section-header details">
+            <div class="section-icon"><i class="bi bi-list-check"></i></div>
+            <div>
+                <div class="section-label">Détail des primes incluses</div>
+                <div class="section-sub">{{ primes|length }} élément(s)</div>
+            </div>
+        </div>
+        <table class="primes-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Prestation</th>
+                    <th>Type</th>
+                    <th style="text-align:right;">Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for p in primes %}
+            <tr>
+                <td style="font-weight:600; color:var(--dark);">{{ p.description }}</td>
+                <td style="font-size:.78rem; color:var(--gray);">
+                    {% if p.evenement_id in evts and evts[p.evenement_id] %}
+                        <i class="bi bi-calendar3 me-1"></i>{{ evts[p.evenement_id].titre[:35] }}
+                    {% else %}—{% endif %}
+                </td>
+                <td>
+                    <span style="font-size:.7rem; padding:2px 8px; border-radius:8px; background:#f5f3ff; color:#6c5ce7; font-weight:600;">
+                        {{ p.type_depense }}
+                    </span>
+                </td>
+                <td style="text-align:right; font-weight:700; color:var(--accent);">
+                    {{ "{:,.0f}".format(p.montant).replace(',', ' ') }} FCFA
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- NOTES -->
+        {% if recu.notes %}
+        <div style="background:#fffbeb; border:1px solid #f59e0b; border-left:4px solid #f59e0b; border-radius:9px; padding:12px 16px; margin-bottom:22px; font-size:.85rem; color:var(--dark);">
+            <i class="bi bi-chat-left-text me-2" style="color:#f59e0b;"></i>{{ recu.notes }}
+        </div>
+        {% endif %}
+
+        <!-- SIGNATURE -->
+        <div class="signature-zone">
+            <div class="sig-text">
+                Je soussigné(e) <strong>{{ recu.beneficiaire }}</strong>, reconnais avoir reçu
+                la somme de <strong>{{ "{:,.0f}".format(recu.total_net).replace(',', ' ') }} FCFA</strong>
+                en règlement de ce document.
+            </div>
+            <div>
+                <div class="sig-wrap" style="margin-bottom:18px;">
+                    <div class="sig-name">{{ params.nom_entreprise if params else 'KS Production' }}</div>
+                    <div {% if params and params.cachet_filename %}style="border:none; background:none; display:flex; align-items:center; justify-content:center; width:160px; height:100px;"{% else %}class="sig-box"{% endif %}>{% if params and params.cachet_filename %}
+                        <img src="/static/uploads/{{ params.cachet_filename }}" alt="Cachet"
+                             style="max-height:150px; max-width:150px; object-fit:contain; display:block;">
+                    {% else %}
+                        Cachet &amp; Signature
+                    {% endif %}</div>
+                    <div class="sig-label">L'employeur</div>
+                </div>
+                <div class="sig-wrap">
+                    <div class="sig-name">{{ recu.beneficiaire }}</div>
+                    <div class="sig-box">Signature</div>
+                    <div class="sig-label">Le bénéficiaire</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PIED -->
+        <div class="footer-doc">
+            {{ recu.numero }} — Document généré le {{ recu.date.strftime('%d/%m/%Y') }}
+            — {{ params.nom_entreprise if params else 'KS Production' }}
+        </div>
+
+    </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+    var RECU_NUM = {{ recu.numero | tojson }};
+
+    function fermerFenetre() {
+        fetch('/api/close-window').catch(function(){});
+        setTimeout(function(){ window.close(); }, 200);
+    }
+
+    function enregistrerPDF() {
+        var btn = document.getElementById('btnSave');
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> En cours...';
+        btn.disabled = true;
+        html2pdf().set({
+            margin: [8,8,8,8], filename: RECU_NUM + '.pdf',
+            image: {type:'jpeg', quality:0.98},
+            html2canvas: {scale:2, useCORS:true},
+            jsPDF: {unit:'mm', format:'a4', orientation:'portrait'}
+        }).from(document.getElementById('zonePDF')).save().then(function(){
+            btn.innerHTML = orig; btn.disabled = false;
+        });
+    }
+</script>
+</body>
+</html>

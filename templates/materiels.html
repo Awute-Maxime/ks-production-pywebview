@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Matériels — KS Production</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root { --ks-primary:#1a1a2e; --ks-accent:#e94560; --ks-green:#00b894; --ks-orange:#f59e0b; --ks-blue:#0984e3; }
+        body  { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .sidebar { width:200px; min-height:100vh; background:var(--ks-primary); position:fixed; left:0; top:0; z-index:100; display:flex; flex-direction:column; }
+        .brand { color:#fff; font-size:.95rem; font-weight:700; padding:14px 16px 12px; border-bottom:1px solid rgba(255,255,255,.1); }
+        .brand span { color:var(--ks-accent); }
+        .brand small { display:block; font-size:.58rem; color:rgba(255,255,255,.3); font-weight:400; }
+        .sidebar nav { flex:1; padding:8px 0; }
+        .nav-section { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.28); padding:10px 16px 3px; font-weight:600; }
+        .nav-link { color:#aab4c4; padding:8px 16px; display:flex; align-items:center; gap:8px; font-size:.8rem; transition:all .2s; }
+        .nav-link:hover,.nav-link.active { color:#fff; background:var(--ks-accent); border-radius:8px; margin:0 6px; padding:8px 10px; }
+        .nav-link i { font-size:.88rem; width:16px; }
+        .sidebar-footer { padding:8px 6px 14px; border-top:1px solid rgba(255,255,255,.1); }
+        .main-content { margin-left:200px; padding:20px; }
+        .topbar { background:#fff; border-radius:12px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+        .topbar h5 { margin:0; font-weight:700; color:var(--ks-primary); font-size:.95rem; }
+
+        /* Stats */
+        .stat-card { background:#fff; border-radius:12px; padding:16px 20px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; align-items:center; gap:14px; }
+        .stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+        .stat-val { font-size:1.5rem; font-weight:800; color:var(--ks-primary); }
+        .stat-lbl { font-size:.68rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; }
+
+        /* Filtres */
+        .filter-bar { background:#fff; border-radius:12px; padding:14px 18px; margin-bottom:18px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+        .filter-bar .form-select, .filter-bar .form-control { font-size:.82rem; border-radius:8px; border:1.5px solid #e0e0e0; padding:7px 12px; }
+        .btn-filtre { background:var(--ks-accent); color:#fff; border:none; border-radius:8px; padding:7px 16px; font-size:.82rem; cursor:pointer; }
+
+        /* Grille matériels */
+        .mat-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:14px; }
+        .mat-card { background:#fff; border-radius:12px; box-shadow:0 1px 8px rgba(0,0,0,.07); overflow:hidden; transition:transform .15s, box-shadow .15s; }
+        .mat-card:hover { transform:translateY(-2px); box-shadow:0 4px 20px rgba(0,0,0,.12); }
+
+        .mat-header { padding:14px 16px 10px; display:flex; justify-content:space-between; align-items:flex-start; }
+        .mat-icon-wrap { width:46px; height:46px; border-radius:11px; display:flex; align-items:center; justify-content:center; font-size:1.3rem; flex-shrink:0; }
+        .mat-nom { font-size:.92rem; font-weight:700; color:var(--ks-primary); margin-top:4px; }
+        .mat-detail { font-size:.74rem; color:#6b7280; margin-top:2px; }
+
+        .mat-body { padding:0 16px 14px; }
+        .mat-info-row { display:flex; gap:6px; flex-wrap:wrap; margin-top:8px; }
+        .mat-tag { font-size:.7rem; padding:3px 10px; border-radius:10px; font-weight:600; }
+
+        /* Badge provenance */
+        .prov-ks   { background:#d1fae5; color:#065f46; }
+        .prov-loc  { background:#fef3c7; color:#92400e; }
+        .prov-pret { background:#dbeafe; color:#1e40af; }
+
+        /* Badge statut */
+        .stat-dispo { background:#d1fae5; color:#065f46; }
+        .stat-maint { background:#fef3c7; color:#92400e; }
+        .stat-hors  { background:#fee2e2; color:#991b1b; }
+
+        /* Badge catégorie */
+        .cat-badge { background:#f3f4f6; color:#374151; }
+
+        .mat-footer { padding:10px 16px; border-top:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+        .qte-badge { font-size:.78rem; font-weight:700; color:var(--ks-primary); }
+        .cout-badge { font-size:.74rem; color:var(--ks-orange); font-weight:600; }
+
+        /* Icônes par catégorie */
+        .ico-sono   { background:#fff5f7; color:#e94560; }
+        .ico-studio { background:#eff6ff; color:#0984e3; }
+        .ico-ecl    { background:#fffbeb; color:#f59e0b; }
+        .ico-cable  { background:#f5f3ff; color:#6c5ce7; }
+        .ico-trans  { background:#ecfdf5; color:#00b894; }
+        .ico-autre  { background:#f3f4f6; color:#6b7280; }
+
+        /* Formulaire modal */
+        .modal-header { background:var(--ks-primary); color:#fff; }
+        .form-label { font-weight:600; font-size:.86rem; color:#444; }
+        .form-control, .form-select { border-radius:8px; border:1.5px solid #e0e0e0; font-size:.86rem; }
+        .form-control:focus, .form-select:focus { border-color:var(--ks-accent); box-shadow:0 0 0 3px #e9456022; }
+        .prov-section { display:none; }
+        .prov-section.visible { display:block; }
+        .btn-ks { background:var(--ks-accent); border:none; color:#fff; border-radius:8px; }
+        .btn-ks:hover { background:#c0392b; color:#fff; }
+
+        /* Hamburger */
+        .hamburger-btn { display:none; position:fixed; top:12px; left:12px; z-index:200; background:var(--ks-accent); color:#fff; border:none; border-radius:10px; width:40px; height:40px; font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; box-shadow:0 3px 12px rgba(233,69,96,.4); }
+        .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; }
+        .sidebar-overlay.active { display:block; }
+        @media(max-width:768px) {
+            .hamburger-btn { display:flex; }
+            .sidebar { transform:translateX(-100%); transition:transform .3s; z-index:160; width:240px !important; }
+            .sidebar.open { transform:translateX(0); }
+            .main-content { margin-left:0 !important; padding:12px !important; padding-top:60px !important; }
+            .mat-grid { grid-template-columns:1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <div class="brand">🎵 KS <span>Production</span><small>Matériels</small></div>
+    <nav>
+        <div class="nav-section">Menu</div>
+        <a href="/dashboard"  class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="/factures"   class="nav-link"><i class="bi bi-receipt"></i> Factures</a>
+        <a href="/proformas"  class="nav-link"><i class="bi bi-file-earmark-text"></i> Proformas</a>
+        <a href="/agenda"     class="nav-link"><i class="bi bi-calendar3"></i> Agenda</a>
+        <a href="/operations" class="nav-link"><i class="bi bi-arrow-left-right"></i> Opérations</a>
+        <a href="/clients"    class="nav-link"><i class="bi bi-people"></i> Clients</a>
+        <div class="nav-section">Production</div>
+        <a href="/techniciens" class="nav-link"><i class="bi bi-person-badge"></i> Techniciens</a>
+        <a href="/materiels"    class="nav-link active"><i class="bi bi-box-seam"></i> Matériels</a>
+        <a href="/fournisseurs" class="nav-link"><i class="bi bi-shop"></i> Fournisseurs</a>
+        <a href="/paie" class="nav-link"><i class="bi bi-cash-coin"></i> Paie & Primes</a>
+        <div class="nav-section">Finance</div>
+        <a href="/paiements"  class="nav-link"><i class="bi bi-clock-history"></i> Paiements</a>
+        <a href="/relances"   class="nav-link"><i class="bi bi-bell-fill"></i> Relances</a>
+        <a href="/rapport"    class="nav-link"><i class="bi bi-bar-chart-line"></i> Rapport</a>
+        {% if role == 'Administrateur' %}
+        <div class="nav-section">Admin</div>
+        <a href="/services"    class="nav-link"><i class="bi bi-grid"></i> Services</a>
+        <a href="/utilisateurs" class="nav-link"><i class="bi bi-person-gear"></i> Utilisateurs</a>
+        <a href="/parametres"  class="nav-link"><i class="bi bi-gear"></i> Paramètres</a>
+        <a href="/sauvegarde"  class="nav-link"><i class="bi bi-cloud-arrow-down"></i> Sauvegarde</a>
+        {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/profil"  class="nav-link"><i class="bi bi-person-circle"></i> Mon Profil</a>
+        <a href="/logout"  class="nav-link" style="color:#e74c3c;"><i class="bi bi-box-arrow-left"></i> Déconnexion</a>
+    </div>
+</div>
+
+<button class="hamburger-btn" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('active');">
+    <i class="bi bi-list"></i>
+</button>
+<div class="sidebar-overlay" id="overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('active');"></div>
+
+<!-- MAIN -->
+<div class="main-content">
+
+    <!-- TOPBAR -->
+    <div class="topbar">
+        <div>
+            <h5><i class="bi bi-box-seam me-2" style="color:var(--ks-accent);"></i>Gestion du Matériel</h5>
+            <small class="text-muted">Catalogue & assignation aux prestations</small>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+            {% if role != 'Lecture seule' %}
+            <button class="btn btn-sm btn-ks" data-bs-toggle="modal" data-bs-target="#modalMateriel" onclick="ouvrirNouveauModal()">
+                <i class="bi bi-plus-lg me-1"></i>Nouveau matériel
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- FLASH -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3">
+            {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- STATS -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-3 col-lg">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#f0f2f5; color:var(--ks-primary);"><i class="bi bi-box-seam"></i></div>
+                <div><div class="stat-val">{{ stats.total }}</div><div class="stat-lbl">Total</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#d1fae5; color:#065f46;"><i class="bi bi-building-check"></i></div>
+                <div><div class="stat-val" style="color:#065f46;">{{ stats.ks }}</div><div class="stat-lbl">KS Production</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#fef3c7; color:#92400e;"><i class="bi bi-cash-coin"></i></div>
+                <div><div class="stat-val" style="color:#92400e;">{{ stats.location }}</div><div class="stat-lbl">En location</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#dbeafe; color:#1e40af;"><i class="bi bi-arrow-left-right"></i></div>
+                <div><div class="stat-val" style="color:#1e40af;">{{ stats.pret }}</div><div class="stat-lbl">Prêts</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-md-3 col-lg">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#fef3c7; color:#92400e;"><i class="bi bi-tools"></i></div>
+                <div><div class="stat-val" style="color:#92400e;">{{ stats.maintenance }}</div><div class="stat-lbl">En maintenance</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FILTRES -->
+    <form method="GET" action="/materiels">
+    <div class="filter-bar">
+        <input type="text" name="q" class="form-control" style="max-width:220px;" placeholder="🔍 Rechercher..." value="{{ q }}">
+        <select name="cat" class="form-select" style="max-width:160px;">
+            <option value="">Toutes catégories</option>
+            {% for c in categories %}
+            <option value="{{ c }}" {% if cat_actif==c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+        </select>
+        <select name="prov" class="form-select" style="max-width:160px;">
+            <option value="">Toutes provenances</option>
+            {% for p in provenances %}
+            <option value="{{ p }}" {% if prov_actif==p %}selected{% endif %}>{{ p }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn-filtre"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+        <a href="/materiels" class="btn btn-sm btn-outline-secondary">Tout afficher</a>
+    </div>
+    </form>
+
+    <!-- GRILLE -->
+    {% if materiels %}
+    <div class="mat-grid">
+        {% for m in materiels %}
+        {% set ico_class = 'ico-sono' if m.categorie=='Sono' else 'ico-studio' if m.categorie=='Studio' else 'ico-ecl' if m.categorie=='Éclairage' else 'ico-cable' if m.categorie=='Câblage' else 'ico-trans' if m.categorie=='Transport' else 'ico-autre' %}
+        {% set ico_sym   = '🔊' if m.categorie=='Sono' else '🎙' if m.categorie=='Studio' else '💡' if m.categorie=='Éclairage' else '🔌' if m.categorie=='Câblage' else '🚐' if m.categorie=='Transport' else '📦' %}
+        <div class="mat-card">
+            <div class="mat-header">
+                <div style="display:flex; gap:12px; align-items:flex-start;">
+                    <div class="mat-icon-wrap {{ ico_class }}">{{ ico_sym }}</div>
+                    <div>
+                        <div class="mat-nom">{{ m.nom }}</div>
+                        <div class="mat-detail">{{ m.marque }}{% if m.modele %} · {{ m.modele }}{% endif %}</div>
+                    </div>
+                </div>
+                {% if role != 'Lecture seule' %}
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary border-0" data-bs-toggle="dropdown"><i class="bi bi-three-dots-vertical"></i></button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="#" onclick="ouvrirModifModal({{ m.id }}, {{ m.nom|tojson }}, {{ (m.categorie or '')|tojson }}, {{ (m.marque or '')|tojson }}, {{ (m.modele or '')|tojson }}, {{ m.quantite }}, {{ m.provenance|tojson }}, {{ m.fournisseur_id or 'null' }}, {{ m.cout_location or 0 }}, {{ m.statut|tojson }}, {{ (m.notes or '')|tojson }})"><i class="bi bi-pencil me-1"></i>Modifier</a></li>
+                        <li>
+                            <form method="POST" action="/materiels/supprimer/{{ m.id }}" onsubmit="return confirm('Supprimer {{ m.nom }} ?')">
+                                <button type="submit" class="dropdown-item text-danger"><i class="bi bi-trash me-1"></i>Supprimer</button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+            <div class="mat-body">
+                <div class="mat-info-row">
+                    {% if m.categorie %}<span class="mat-tag cat-badge">{{ m.categorie }}</span>{% endif %}
+                    <span class="mat-tag {{ 'prov-ks' if m.provenance=='KS Production' else 'prov-loc' if m.provenance=='Location' else 'prov-pret' }}">
+                        {{ '🏢' if m.provenance=='KS Production' else '💰' if m.provenance=='Location' else '🤝' }} {{ m.provenance }}
+                    </span>
+                    <span class="mat-tag {{ 'stat-dispo' if m.statut=='Disponible' else 'stat-maint' if m.statut=='En maintenance' else 'stat-hors' }}">
+                        {{ m.statut }}
+                    </span>
+                </div>
+                {% if m.fournisseur %}
+                <div style="font-size:.74rem; color:#6b7280; margin-top:8px;">
+                    <i class="bi bi-shop me-1" style="color:var(--ks-accent);"></i>
+                    <strong>{{ m.fournisseur.nom }}</strong>
+                    {% if m.fournisseur.telephone %} · <i class="bi bi-telephone me-1"></i>{{ m.fournisseur.telephone }}{% endif %}
+                </div>
+                {% endif %}
+                {% if m.notes %}
+                <div style="font-size:.72rem; color:#9ca3af; margin-top:5px; font-style:italic;">{{ m.notes[:80] }}{% if m.notes|length > 80 %}…{% endif %}</div>
+                {% endif %}
+            </div>
+            <div class="mat-footer">
+                <span class="qte-badge"><i class="bi bi-stack me-1"></i>Qté : {{ m.quantite }}</span>
+                {% if m.provenance == 'Location' and m.cout_location %}
+                <span class="cout-badge"><i class="bi bi-cash me-1"></i>{{ "{:,.0f}".format(m.cout_location).replace(',', ' ') }} FCFA/j</span>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5">
+        <div style="font-size:3rem; margin-bottom:12px;">📦</div>
+        <h6 style="color:#6b7280;">Aucun matériel enregistré</h6>
+        <p style="font-size:.84rem; color:#9ca3af;">Commencez par ajouter votre premier équipement.</p>
+        {% if role != 'Lecture seule' %}
+        <button class="btn btn-ks btn-sm mt-2" data-bs-toggle="modal" data-bs-target="#modalMateriel" onclick="ouvrirNouveauModal()">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter un matériel
+        </button>
+        {% endif %}
+    </div>
+    {% endif %}
+
+</div><!-- /main-content -->
+
+<!-- ══ MODAL FORMULAIRE ══════════════════════════════════════════ -->
+<div class="modal fade" id="modalMateriel" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <div class="modal-header">
+        <h5 class="modal-title" id="modalMatTitre"><i class="bi bi-box-seam me-2"></i>Nouveau matériel</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+    </div>
+    <form id="formMateriel" method="POST" action="/materiels/nouveau">
+    <div class="modal-body">
+        <div class="row g-3">
+            <div class="col-md-8">
+                <label class="form-label">Nom du matériel *</label>
+                <input type="text" class="form-control" name="nom" id="matNom" required placeholder="Ex: Enceinte JBL SRX835P">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Catégorie</label>
+                <select class="form-select" name="categorie" id="matCat">
+                    <option value="">— Choisir —</option>
+                    {% for c in categories %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Marque</label>
+                <input type="text" class="form-control" name="marque" id="matMarque" placeholder="Ex: JBL, Yamaha, Shure...">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Modèle</label>
+                <input type="text" class="form-control" name="modele" id="matModele" placeholder="Ex: SRX835P, MG10XU...">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Quantité en stock</label>
+                <input type="number" class="form-control" name="quantite" id="matQte" value="1" min="1">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Provenance</label>
+                <select class="form-select" name="provenance" id="matProv" onchange="toggleProvenance(this.value)">
+                    {% for p in provenances %}
+                    <option value="{{ p }}">{{ p }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Statut</label>
+                <select class="form-select" name="statut" id="matStatut">
+                    <option value="Disponible">✅ Disponible</option>
+                    <option value="En maintenance">🔧 En maintenance</option>
+                    <option value="Hors service">❌ Hors service</option>
+                </select>
+            </div>
+
+            <!-- Section fournisseur (Location / Prêt) -->
+            <div class="col-12 prov-section" id="provSection">
+                <div style="background:#fffbeb; border-radius:10px; padding:14px; border:1px solid #fde68a;">
+                    <div style="font-size:.78rem; font-weight:700; color:#92400e; margin-bottom:10px;">
+                        <i class="bi bi-shop me-1"></i>Fournisseur associé
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <label class="form-label">Sélectionner un fournisseur</label>
+                            <select class="form-select" name="fournisseur_id" id="matFourn">
+                                <option value="">— Aucun / saisie libre —</option>
+                                {% for f in fournisseurs %}
+                                <option value="{{ f.id }}">{{ f.nom }}{% if f.telephone %} · {{ f.telephone }}{% endif %}</option>
+                                {% endfor %}
+                            </select>
+                            <div style="font-size:.72rem; color:#9ca3af; margin-top:4px;">
+                                <i class="bi bi-info-circle me-1"></i>
+                                <a href="/fournisseurs" target="_blank" style="color:var(--ks-accent);">Gérer les fournisseurs</a>
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="coutSection">
+                            <label class="form-label">Coût / jour (FCFA)</label>
+                            <input type="number" class="form-control" name="cout_location" id="matCout" value="0" min="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" id="matNotes" rows="2" placeholder="Numéro de série, état, précisions..."></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-ks"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
+    </div>
+    </form>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function toggleProvenance(val) {
+    const sec  = document.getElementById('provSection');
+    const cout = document.getElementById('coutSection');
+    sec.classList.toggle('visible', val === 'Location' || val === 'Prêt');
+    if (cout) cout.style.display = val === 'Location' ? 'block' : 'none';
+}
+
+function ouvrirNouveauModal() {
+    document.getElementById('modalMatTitre').innerHTML = '<i class="bi bi-plus-circle me-2"></i>Nouveau matériel';
+    document.getElementById('formMateriel').action = '/materiels/nouveau';
+    ['matNom','matMarque','matModele','matNotes','matFourn','matContact'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+    document.getElementById('matQte').value    = '1';
+    document.getElementById('matCout').value   = '0';
+    document.getElementById('matCat').value    = '';
+    document.getElementById('matProv').value   = 'KS Production';
+    document.getElementById('matStatut').value = 'Disponible';
+    toggleProvenance('KS Production');
+}
+
+function ouvrirModifModal(id, nom, cat, marque, modele, qte, prov, fourn_id, cout, statut, notes) {
+    document.getElementById('modalMatTitre').innerHTML = '<i class="bi bi-pencil me-2"></i>Modifier le matériel';
+    document.getElementById('formMateriel').action = `/materiels/modifier/${id}`;
+    document.getElementById('matNom').value    = nom;
+    document.getElementById('matCat').value    = cat;
+    document.getElementById('matMarque').value = marque;
+    document.getElementById('matModele').value = modele;
+    document.getElementById('matQte').value    = qte;
+    document.getElementById('matProv').value   = prov;
+    document.getElementById('matCout').value   = cout;
+    document.getElementById('matStatut').value = statut;
+    document.getElementById('matNotes').value  = notes;
+    const fSel = document.getElementById('matFourn');
+    if (fSel) fSel.value = fourn_id || '';
+    toggleProvenance(prov);
+    new bootstrap.Modal(document.getElementById('modalMateriel')).show();
+}
+// Init
+toggleProvenance('KS Production');
+</script>
+</body>
+</html>

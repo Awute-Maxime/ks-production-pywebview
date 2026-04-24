@@ -1,0 +1,1296 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda — KS Production</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root { --ks-primary:#1a1a2e; --ks-accent:#e94560; --studio:#0984e3; --sono:#e17055; --general:#6c5ce7; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+
+        .sidebar { width:200px; min-height:100vh; background:var(--ks-primary); position:fixed; left:0; top:0; z-index:100; display:flex; flex-direction:column; }
+        .brand { color:#fff; font-size:.95rem; font-weight:700; padding:14px 16px 12px; border-bottom:1px solid rgba(255,255,255,.1); }
+        .brand span { color:var(--ks-accent); }
+        .brand small { display:block; font-size:.58rem; color:rgba(255,255,255,.3); font-weight:400; }
+        .sidebar nav { flex:1; padding:8px 0; }
+        .nav-section { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.28); padding:10px 16px 3px; font-weight:600; }
+        .nav-link { color:#aab4c4; padding:8px 16px; display:flex; align-items:center; gap:8px; font-size:.8rem; transition:all .2s; }
+        .nav-link:hover, .nav-link.active { color:#fff; background:var(--ks-accent); border-radius:8px; margin:0 6px; padding:8px 10px; }
+        .nav-link i { font-size:.88rem; width:16px; }
+        .sidebar-footer { padding:8px 6px 14px; border-top:1px solid rgba(255,255,255,.1); }
+
+        .main-content { margin-left:200px; padding:18px; }
+        .topbar { background:#fff; border-radius:12px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+        .topbar h5 { margin:0; font-weight:700; color:var(--ks-primary); font-size:.95rem; }
+
+        .stat-mini { background:#fff; border-radius:10px; padding:12px 16px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; align-items:center; gap:12px; }
+        .stat-mini .ico { width:36px; height:36px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-size:1rem; flex-shrink:0; }
+        .stat-mini .num { font-size:1.2rem; font-weight:800; color:var(--ks-primary); }
+        .stat-mini .lbl { font-size:.65rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; }
+
+        .cal-card { background:#fff; border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,.06); overflow:hidden; }
+        .cal-header { background:var(--ks-primary); color:#fff; padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+        .cal-header h4 { margin:0; font-size:1.1rem; font-weight:800; }
+        .btn-nav { background:rgba(255,255,255,.12); border:none; color:#fff; border-radius:8px; padding:6px 14px; cursor:pointer; font-size:.82rem; transition:all .2s; }
+        .btn-nav:hover { background:rgba(255,255,255,.25); }
+
+        .cal-grid { padding:16px; }
+        .cal-days-head { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:6px; }
+        .cal-days-head span { text-align:center; font-size:.65rem; font-weight:700; color:#9ca3af; text-transform:uppercase; padding:4px; }
+
+        .cal-weeks { display:flex; flex-direction:column; gap:4px; }
+        .cal-week  { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+        .cal-cell {
+            min-height:90px; border-radius:8px; padding:5px;
+            background:#f8f9fa; border:1.5px solid #f0f0f0;
+            cursor:pointer; transition:all .15s; position:relative;
+        }
+        .cal-cell:hover { border-color:#c4b5fd; background:#faf5ff; }
+        .cal-cell.today { border-color:var(--ks-accent); background:#fff5f7; }
+        .cal-cell.today .cell-day { color:var(--ks-accent); font-weight:800; }
+        .cal-cell.empty { background:transparent; border-color:transparent; cursor:default; }
+        .cal-cell.empty:hover { background:transparent; border-color:transparent; }
+        .cell-day { font-size:.78rem; font-weight:600; color:#374151; margin-bottom:3px; }
+
+        .evt-chip {
+            display:block; border-radius:5px; padding:2px 6px;
+            font-size:.65rem; font-weight:600; margin-bottom:2px;
+            white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            cursor:pointer; transition:opacity .15s;
+        }
+        .evt-chip:hover { opacity:.8; }
+        .evt-studio  { background:#dbeafe; color:#1d4ed8; border-left:3px solid var(--studio); }
+        .evt-sono    { background:#fed7aa; color:#c2410c; border-left:3px solid var(--sono); }
+        .evt-sonorisation { background:#fed7aa; color:#c2410c; border-left:3px solid var(--sono); }
+        .evt-general { background:#ede9fe; color:#5b21b6; border-left:3px solid var(--general); }
+        .evt-tentative { opacity:.65; }
+        .evt-annule  { text-decoration:line-through; opacity:.5; }
+        .evt-plus { font-size:.6rem; color:#9ca3af; padding:1px 4px; }
+
+        .btn-add-day {
+            position:absolute; bottom:4px; right:4px;
+            width:20px; height:20px; border-radius:50%;
+            background:var(--ks-accent); color:#fff; border:none;
+            font-size:.7rem; display:none; align-items:center; justify-content:center;
+            cursor:pointer;
+        }
+        .cal-cell:hover .btn-add-day { display:flex; }
+
+        .legende { display:flex; gap:14px; align-items:center; padding:10px 16px; border-top:1px solid #f0f0f0; }
+        .leg-item { display:flex; align-items:center; gap:5px; font-size:.72rem; color:#6b7280; }
+        .leg-dot  { width:10px; height:10px; border-radius:3px; }
+
+        .list-card { background:#fff; border-radius:14px; box-shadow:0 1px 6px rgba(0,0,0,.06); overflow:hidden; }
+        .list-head { background:var(--ks-primary); color:#fff; padding:12px 18px; font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+        /* FIX : clic sur les items de la liste */
+        .evt-list-item { padding:12px 16px; border-bottom:1px solid #f3f4f6; display:flex; align-items:flex-start; gap:12px; transition:background .15s; cursor:pointer; }
+        .evt-list-item:hover { background:#f0f0ff; }
+        .evt-list-item:last-child { border-bottom:none; }
+        .evt-date-badge { text-align:center; min-width:40px; }
+        .evt-date-badge .day { font-size:1.2rem; font-weight:800; color:var(--ks-primary); line-height:1; }
+        .evt-date-badge .mon { font-size:.62rem; color:#9ca3af; text-transform:uppercase; }
+        .evt-info { flex:1; }
+        .evt-titre-list { font-size:.88rem; font-weight:700; color:var(--ks-primary); }
+        .evt-meta { font-size:.72rem; color:#6b7280; margin-top:3px; display:flex; flex-wrap:wrap; gap:8px; }
+        .evt-meta i { color:var(--ks-accent); }
+        .badge-statut-c { background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:700; }
+        .badge-statut-t { background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:700; }
+        .badge-statut-a { background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:700; }
+        .badge-statut-done { background:#f0f2f5; color:#374151; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:700; }
+        .badge-sec-s { background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:600; }
+        .badge-sec-o { background:#fed7aa; color:#c2410c; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:600; }
+        .badge-sec-g { background:#ede9fe; color:#5b21b6; padding:2px 8px; border-radius:20px; font-size:.65rem; font-weight:600; }
+
+        .modal-header { background:var(--ks-primary); color:#fff; }
+        .modal-title  { font-size:.9rem; font-weight:700; }
+        .btn-close-white { filter:invert(1); }
+        .form-label { font-weight:600; color:#444; font-size:.85rem; }
+        .form-control, .form-select { border-radius:8px; border:1.5px solid #e0e0e0; padding:8px 12px; font-size:.85rem; }
+        .form-control:focus, .form-select:focus { border-color:var(--ks-accent); box-shadow:0 0 0 3px rgba(233,69,96,.12); }
+        .btn-ks { background:var(--ks-accent); border:none; color:#fff; }
+        .btn-ks:hover { background:#c0392b; color:#fff; }
+
+        /* TECHNICIENS */
+        .tech-check-item { background:#fff; border:1.5px solid #e5e7eb; border-radius:8px; padding:8px 10px; cursor:pointer; transition:all .15s; }
+        .tech-check-item:hover { border-color:#6c5ce7; background:#f5f3ff; }
+        .tech-check-item.selected { border-color:#6c5ce7; background:#ede9fe; }
+        .tech-check-item.occupe   { opacity:.5; cursor:not-allowed; }
+        .tech-check-item .t-nom   { font-size:.78rem; font-weight:700; color:#1a1a2e; }
+        .tech-check-item .t-spec  { font-size:.65rem; color:#6b7280; }
+        .tech-check-item .t-badge { font-size:.6rem; padding:1px 6px; border-radius:10px; }
+        .badge-occupe { background:#fee2e2; color:#991b1b; }
+        .badge-libre  { background:#d1fae5; color:#065f46; }
+        .role-input { width:100%; margin-top:5px; font-size:.72rem; border:1px solid #e0e0e0; border-radius:6px; padding:3px 8px; display:none; }
+        .tech-check-item.selected .role-input { display:block; }
+
+        /* ── ONGLETS MODAL DÉTAIL ── */
+        .tab-modal-btn {
+            background: transparent; border: none; border-bottom: 3px solid transparent;
+            padding: 10px 16px; font-size: .8rem; font-weight: 600; color: #6b7280;
+            cursor: pointer; transition: all .15s; white-space: nowrap;
+        }
+        .tab-modal-btn:hover  { color: var(--ks-primary); }
+        .tab-modal-btn.active { color: var(--ks-accent); border-bottom-color: var(--ks-accent); }
+        .tab-modal-content          { display: none; }
+        .tab-modal-content.active   { display: block; }
+
+        .tech-assigne-badge { display:inline-flex; align-items:center; gap:5px; background:#ede9fe; color:#5b21b6; padding:4px 10px; border-radius:20px; font-size:.72rem; font-weight:600; margin:2px; }
+
+        /* Notification flash inline */
+        #flashAssigner { font-size:.8rem; margin-top:8px; padding:6px 12px; border-radius:8px; display:none; }
+        #flashAssigner.ok  { background:#d1fae5; color:#065f46; display:block; }
+        #flashAssigner.err { background:#fee2e2; color:#991b1b; display:block; }
+
+        
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar">
+    <div class="brand">🎵 KS <span>Production</span><small>Agenda</small></div>
+    <nav>
+        <div class="nav-section">Menu</div>
+        <a href="/dashboard"  class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="/factures"   class="nav-link"><i class="bi bi-receipt"></i> Factures</a>
+        <a href="/proformas"  class="nav-link"><i class="bi bi-file-earmark-text"></i> Proformas</a>
+        <a href="/agenda"     class="nav-link active"><i class="bi bi-calendar3"></i> Agenda</a>
+        <a href="/agenda/prestations/archivees" class="nav-link"><i class="bi bi-archive"></i> Archives</a>
+        <a href="/operations" class="nav-link"><i class="bi bi-arrow-left-right"></i> Opérations</a>
+        <a href="/clients"    class="nav-link"><i class="bi bi-people"></i> Clients</a>
+        <div class="nav-section">Finance</div>
+        <a href="/paiements"  class="nav-link"><i class="bi bi-clock-history"></i> Paiements</a>
+        <a href="/relances" class="nav-link"><i class="bi bi-bell-fill"></i> Relances</a>
+        <a href="/rapport"    class="nav-link"><i class="bi bi-bar-chart-line"></i> Rapport</a>
+        {% if role == 'Administrateur' %}
+        <div class="nav-section">Admin</div>
+        <a href="/services"      class="nav-link"><i class="bi bi-grid"></i> Services</a>
+        <a href="/utilisateurs"  class="nav-link"><i class="bi bi-person-gear"></i> Utilisateurs</a>
+        <a href="/techniciens"   class="nav-link"><i class="bi bi-people-fill"></i> Techniciens</a>
+        <a href="/materiels"     class="nav-link"><i class="bi bi-box-seam"></i> Matériels</a>
+        <a href="/parametres"    class="nav-link"><i class="bi bi-gear"></i> Paramètres</a>
+        <a href="/sauvegarde"    class="nav-link"><i class="bi bi-cloud-arrow-down"></i> Sauvegarde</a>
+        <a href="/reinitialiser" class="nav-link" style="color:#e74c3c;"><i class="bi bi-arrow-counterclockwise"></i> Réinitialiser</a>
+        {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/profil" class="nav-link"><i class="bi bi-person-circle"></i> Mon Profil</a>
+        <a href="/logout" class="nav-link" style="color:#e74c3c;"><i class="bi bi-box-arrow-left"></i> Déconnexion</a>
+    </div>
+</div>
+<button class="hamburger-btn" onclick="toggleSidebar()" id="hamburgerBtn">
+    <i class="bi bi-list" id="hamburgerIcon"></i>
+</button>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
+
+
+<!-- MAIN -->
+<div class="main-content">
+
+    <div class="topbar">
+        <div>
+            <h5><i class="bi bi-calendar3 me-2" style="color:var(--ks-accent);"></i>Agenda & Planning</h5>
+            <small class="text-muted">{{ nom_mois }} {{ annee }} — {{ nb_total }} prestation(s)</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if role != 'Lecture seule' %}
+            <button class="btn btn-sm btn-ks" data-bs-toggle="modal" data-bs-target="#modalNouvelEvenement">
+                <i class="bi bi-plus-lg me-1"></i>Nouvelle prestation
+            </button>
+            {% endif %}
+            <!-- CLOCHE ALERTES -->
+            <div class="position-relative">
+                <button id="btnCloche" onclick="toggleAlertes()"
+                        style="background:none; border:none; cursor:pointer; position:relative; padding:4px 8px;">
+                    <i class="bi bi-bell-fill" style="font-size:1.25rem; color:#6b7280;" id="iconeCloche"></i>
+                    <span id="badgeAlertes"
+                          style="display:none; position:absolute; top:0px; right:2px;
+                                 background:#e94560; color:#fff; border-radius:50%;
+                                 width:17px; height:17px; font-size:.58rem; font-weight:700;
+                                 align-items:center; justify-content:center; line-height:1;">0</span>
+                </button>
+                <div id="panneauAlertes"
+                     style="display:none; position:absolute; right:0; top:44px; width:340px; z-index:9999;
+                            background:#fff; border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.15);
+                            overflow:hidden; border:1px solid #f0f0f0;">
+                    <div style="background:#1a1a2e; color:#fff; padding:12px 16px; display:flex; justify-content:space-between; align-items:center;">
+                        <span style="font-size:.82rem; font-weight:700;"><i class="bi bi-bell-fill me-2" style="color:#e94560;"></i>Alertes prestations</span>
+                        <span id="nbAlertesHead" style="background:#e94560; color:#fff; border-radius:20px; padding:1px 8px; font-size:.7rem; font-weight:700;">0</span>
+                    </div>
+                    <div id="listeAlertes" style="max-height:360px; overflow-y:auto; padding:8px;">
+                        <div style="text-align:center; padding:20px; color:#9ca3af; font-size:.8rem;">
+                            <i class="bi bi-hourglass" style="font-size:1.5rem; display:block; margin-bottom:6px;"></i>Chargement...
+                        </div>
+                    </div>
+                    <div style="padding:10px 16px; border-top:1px solid #f0f0f0; text-align:center;">
+                        <a href="/agenda" style="font-size:.75rem; color:#6c5ce7; text-decoration:none; font-weight:600;">
+                            <i class="bi bi-calendar3 me-1"></i>Voir l'agenda complet
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show mb-3">
+            {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- STATS -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="stat-mini">
+                <div class="ico" style="background:#e0f2fe; color:#0984e3;"><i class="bi bi-calendar-check"></i></div>
+                <div><div class="num">{{ nb_total }}</div><div class="lbl">Ce mois</div></div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-mini">
+                <div class="ico" style="background:#d1fae5; color:#065f46;"><i class="bi bi-check-circle"></i></div>
+                <div><div class="num">{{ nb_confirmes }}</div><div class="lbl">Confirmées</div></div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-mini">
+                <div class="ico" style="background:#fef3c7; color:#92400e;"><i class="bi bi-hourglass-split"></i></div>
+                <div><div class="num">{{ nb_tentatives }}</div><div class="lbl">Tentatives</div></div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-mini">
+                <div class="ico" style="background:#fee2e2; color:#991b1b;"><i class="bi bi-x-circle"></i></div>
+                <div><div class="num">{{ nb_annules }}</div><div class="lbl">Annulées</div></div>
+                <a href="/agenda/prestations/archivees"
+                   style="text-decoration:none; display:flex; flex-direction:column; align-items:center; padding:8px 16px; background:linear-gradient(135deg,#1a1a2e,#2d3756); border-radius:10px; cursor:pointer;"
+                   title="Archives prestations">
+                    <div style="font-size:1.1rem; font-weight:800; color:#fff;"><i class="bi bi-archive"></i></div>
+                    <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:rgba(255,255,255,.6); margin-top:2px;">Archives</div>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3">
+
+        <!-- CALENDRIER -->
+        <div class="col-lg-8">
+            <div class="cal-card">
+                <div class="cal-header">
+                    <a href="/agenda?mois={{ mois_prec }}&annee={{ annee_prec }}" class="btn-nav"><i class="bi bi-chevron-left"></i></a>
+                    <h4>{{ nom_mois }} {{ annee }}</h4>
+                    <a href="/agenda?mois={{ mois_suiv }}&annee={{ annee_suiv }}" class="btn-nav"><i class="bi bi-chevron-right"></i></a>
+                </div>
+                <div class="cal-grid">
+                    <div class="cal-days-head">
+                        <span>Lun</span><span>Mar</span><span>Mer</span>
+                        <span>Jeu</span><span>Ven</span><span>Sam</span><span>Dim</span>
+                    </div>
+                    <div class="cal-weeks">
+                        {% for semaine in cal %}
+                        <div class="cal-week">
+                            {% for jour in semaine %}
+                            {% if jour == 0 %}
+                            <div class="cal-cell empty"></div>
+                            {% else %}
+                            <div class="cal-cell {% if jour == today_day and mois == today_month and annee == today_year %}today{% endif %}"
+                                 onclick="ouvrirJour({{ jour }})">
+                                <div class="cell-day">{{ jour }}</div>
+                                {% if jour in evts_par_jour %}
+                                    {% for ev in evts_par_jour[jour][:3] %}
+                                    <span class="evt-chip evt-{{ ev.section|lower|replace(' ','') if ev.section else 'general' }} {% if ev.statut == 'Tentative' %}evt-tentative{% elif ev.statut == 'Annulé' %}evt-annule{% endif %}"
+                                          onclick="event.stopPropagation(); voirDetail({{ ev.id }}, '{{ ev.titre|replace("'","\\'")|e }}', '{{ ev.date.strftime('%d/%m/%Y') }}', '{{ ev.heure_debut or '' }}', '{{ ev.heure_fin or '' }}', '{{ ev.nom_client or '' }}', '{{ ev.service or '' }}', '{{ ev.section or '' }}', '{{ ev.lieu or '' }}', '{{ ev.statut }}', '{{ ev.notes or '' }}', {{ ev.facture_id or 'null' }}, '{% if ev.facture_id and ev.facture %}{{ ev.facture.numero }}{% endif %}')">
+                                        {% if ev.heure_debut %}{{ ev.heure_debut }} {% endif %}{{ ev.titre }}
+                                    </span>
+                                    {% endfor %}
+                                    {% if evts_par_jour[jour]|length > 3 %}
+                                    <span class="evt-plus">+{{ evts_par_jour[jour]|length - 3 }} autre(s)</span>
+                                    {% endif %}
+                                {% endif %}
+                                {% if role != 'Lecture seule' %}
+                                <button class="btn-add-day" onclick="event.stopPropagation(); preRemplirDate({{ jour }}, {{ mois }}, {{ annee }})">
+                                    <i class="bi bi-plus"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="legende">
+                    <span style="font-size:.7rem; color:#9ca3af; font-weight:600;">Légende :</span>
+                    <div class="leg-item"><div class="leg-dot" style="background:#dbeafe; border-left:3px solid #0984e3;"></div> Studio</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#fed7aa; border-left:3px solid #e17055;"></div> Sonorisation</div>
+                    <div class="leg-item"><div class="leg-dot" style="background:#ede9fe; border-left:3px solid #6c5ce7;"></div> Général</div>
+                    <div class="leg-item" style="margin-left:10px;"><i class="bi bi-circle" style="font-size:.6rem; color:#ccc;"></i> Aujourd'hui = bordure rouge</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTE DU MOIS — FIX : onclick sur chaque item -->
+        <div class="col-lg-4">
+            <div class="list-card">
+                <div class="list-head"><i class="bi bi-list-ul me-2"></i>Prestations du mois</div>
+                {% for ev in evenements %}
+                <div class="evt-list-item"
+                     onclick="voirDetail({{ ev.id }}, '{{ ev.titre|replace("'","\\'")|e }}', '{{ ev.date.strftime('%d/%m/%Y') }}', '{{ ev.heure_debut or '' }}', '{{ ev.heure_fin or '' }}', '{{ ev.nom_client or '' }}', '{{ ev.service or '' }}', '{{ ev.section or '' }}', '{{ ev.lieu or '' }}', '{{ ev.statut }}', '{{ ev.notes or '' }}', {{ ev.facture_id or 'null' }}, '{% if ev.facture_id and ev.facture %}{{ ev.facture.numero }}{% endif %}')">
+                    <div class="evt-date-badge">
+                        <div class="day">{{ ev.date.day }}</div>
+                        <div class="mon">{{ ev.date.strftime('%b') }}</div>
+                    </div>
+                    <div class="evt-info">
+                        <div class="evt-titre-list">{{ ev.titre }}</div>
+                        <div class="evt-meta">
+                            {% if ev.heure_debut %}<span><i class="bi bi-clock"></i> {{ ev.heure_debut }}{% if ev.heure_fin %} – {{ ev.heure_fin }}{% endif %}</span>{% endif %}
+                            {% if ev.nom_client %}<span><i class="bi bi-person"></i> {{ ev.nom_client }}</span>{% endif %}
+                            {% if ev.lieu %}<span><i class="bi bi-geo-alt"></i> {{ ev.lieu }}</span>{% endif %}
+                        </div>
+                        <div class="mt-1" style="display:flex; gap:4px; flex-wrap:wrap;">
+                            {% if ev.statut == 'Confirmé' %}<span class="badge-statut-c">✓ Confirmé</span>
+                            {% elif ev.statut == 'Tentative' %}<span class="badge-statut-t">⏳ Tentative</span>
+                            {% elif ev.statut == 'Terminée' %}<span class="badge-statut-done">📦 Terminée</span>
+                            {% else %}<span class="badge-statut-a">✗ Annulé</span>{% endif %}
+                            {% if ev.section == 'Studio' %}<span class="badge-sec-s">Studio</span>
+                            {% elif ev.section == 'Sonorisation' %}<span class="badge-sec-o">Sono</span>
+                            {% elif ev.section %}<span class="badge-sec-g">{{ ev.section }}</span>{% endif %}
+                        </div>
+                    </div>
+                    {% if role != 'Lecture seule' %}
+                    <a href="/agenda/fiche-pdf/{{ ev.id }}" target="_blank"
+                       style="background:#fee2e2; border:none; color:#e94560; border-radius:6px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-size:.72rem;"
+                       title="Fiche PDF">
+                        <i class="bi bi-file-earmark-pdf"></i>
+                    </a>
+                    <form method="POST" action="/agenda/supprimer/{{ ev.id }}"
+                          onsubmit="event.stopPropagation(); return confirm('Supprimer cet événement ?')">
+                        <button type="submit" onclick="event.stopPropagation();"
+                                style="background:#fee2e2; border:none; color:#991b1b; border-radius:6px; width:26px; height:26px; font-size:.72rem; cursor:pointer;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div style="text-align:center; padding:30px; color:#aaa;">
+                    <i class="bi bi-calendar-x" style="font-size:2rem; display:block; margin-bottom:8px;"></i>
+                    Aucune prestation ce mois
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- MODAL NOUVEL ÉVÉNEMENT -->
+<div class="modal fade" id="modalNouvelEvenement" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calendar-plus me-2"></i>Nouvelle prestation</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/agenda/nouveau">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label">Titre <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="titre" id="inputTitre" placeholder="Ex: Sonorisation Mariage KONDO" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Date <span class="text-danger">*</span></label>
+                            <input type="date" class="form-control" name="date" id="inputDate" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Heure début</label>
+                            <input type="time" class="form-control" name="heure_debut">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Heure fin</label>
+                            <input type="time" class="form-control" name="heure_fin">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Client</label>
+                            <select class="form-select" name="nom_client">
+                                <option value="">-- Choisir un client --</option>
+                                {% for client in clients %}
+                                <option value="{{ client.nom }}">{{ client.nom }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Service</label>
+                            <select class="form-select" name="service">
+                                <option value="">-- Choisir un service --</option>
+                                {% for svc in services_list %}
+                                <option value="{{ svc.libelle }}">{{ svc.libelle }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Section</label>
+                            <select class="form-select" name="section">
+                                <option value="Studio">Studio</option>
+                                <option value="Sonorisation">Sonorisation</option>
+                                <option value="Général">Général</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Statut</label>
+                            <select class="form-select" name="statut">
+                                <option value="Confirmé">✓ Confirmé</option>
+                                <option value="Tentative">⏳ Tentative</option>
+                                <option value="Annulé">✗ Annulé</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Lieu</label>
+                            <input type="text" class="form-control" name="lieu" placeholder="Ex: Lomé, Salle XYZ">
+                        </div>
+                        <div class="col-12">
+
+                            <!-- LIEN FACTURE — à coller avant <label>Notes</label> dans modalNouvelEvenement -->
+                        <div class="col-12">
+                            <label class="form-label">
+                                <i class="bi bi-receipt me-1" style="color:var(--ks-accent);"></i>
+                                Lier à une facture <span class="text-muted" style="font-size:.75rem;">(optionnel)</span>
+                            </label>
+                            <select class="form-select" name="facture_id" id="selectFacture">
+                                <option value="">— Aucune facture liée —</option>
+                                {% for f in factures_liables %}
+                                <option value="{{ f.id }}"
+                                    {% if ev is defined and ev.facture_id == f.id %}selected{% endif %}>
+                                    {{ f.numero }} — {{ f.nom_client }}
+                                    ({{ "{:,.0f}".format(f.montant_ttc).replace(',', ' ') }} FCFA
+                                    · {{ '✓ Payée' if f.etat_paiement == 'Payer' else '✗ Impayée' }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="2" placeholder="Informations complémentaires..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-ks"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DÉTAIL — VERSION ONGLETS -->
+<div class="modal fade" id="modalDetail" tabindex="-1">
+    <div class="modal-dialog modal-xl" style="max-width:900px;">
+        <div class="modal-content" style="max-height:90vh; display:flex; flex-direction:column;">
+
+            <!-- HEADER -->
+            <div class="modal-header" style="background:var(--ks-primary); color:#fff; flex-shrink:0; padding:12px 20px;">
+                <div style="display:flex; align-items:center; gap:12px; flex:1; min-width:0;">
+                    <div>
+                        <h6 class="modal-title mb-0" id="detailTitre" style="font-size:.95rem; font-weight:700;"></h6>
+                        <div id="detailMetaHeader" style="font-size:.72rem; color:rgba(255,255,255,.5); margin-top:2px;"></div>
+                    </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <a id="btnFichePDF" href="#" target="_blank"
+                       class="btn btn-sm" style="background:#e94560;color:#fff;border:none;font-size:.78rem;border-radius:7px;">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
+                    </a>
+                    <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+                </div>
+            </div>
+
+            <!-- ONGLETS NAV -->
+            <div style="background:#f8f9fa; border-bottom:1px solid #e5e7eb; flex-shrink:0; padding:0 16px;">
+                <div style="display:flex; gap:0;">
+                    <button class="tab-modal-btn active" onclick="switchTab('infos', this)" id="tabBtnInfos">
+                        <i class="bi bi-info-circle me-1"></i>Infos
+                    </button>
+                    <button class="tab-modal-btn" onclick="switchTab('equipe', this)" id="tabBtnEquipe">
+                        <i class="bi bi-people me-1"></i>Équipe
+                    </button>
+                    <button class="tab-modal-btn" onclick="switchTab('materiel', this)" id="tabBtnMateriel">
+                        <i class="bi bi-box-seam me-1"></i>Matériel
+                    </button>
+                    <button class="tab-modal-btn" onclick="switchTab('depenses', this)" id="tabBtnDepenses">
+                        <i class="bi bi-cash-coin me-1"></i>Dépenses
+                        <span id="badgeDepenses" style="display:none; background:#e94560; color:#fff; border-radius:10px; padding:1px 6px; font-size:.65rem; margin-left:4px;"></span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- CORPS SCROLLABLE -->
+            <div class="modal-body" style="overflow-y:auto; flex:1; padding:16px 20px;">
+
+                <!-- ══ ONGLET INFOS ══ -->
+                <div id="tabInfos" class="tab-modal-content active">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+                        <!-- Infos générales -->
+                        <div style="background:#f8f9fa; border-radius:10px; padding:14px;">
+                            <div style="font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; margin-bottom:10px;">
+                                <i class="bi bi-calendar3 me-1" style="color:var(--ks-accent);"></i>Informations
+                            </div>
+                            <div style="font-size:.84rem; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                                <div><div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Date</div><strong id="detailDate" style="color:var(--ks-accent);"></strong></div>
+                                <div><div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Horaire</div><strong id="detailHeure"></strong></div>
+                                <div><div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Client</div><strong id="detailClient"></strong></div>
+                                <div><div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Lieu</div><strong id="detailLieu"></strong></div>
+                                <div><div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Section</div><strong id="detailSection"></strong></div>
+                                <div><div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em;">Statut</div><strong id="detailStatut"></strong></div>
+                            </div>
+                            <div style="margin-top:10px; font-size:.82rem;">
+                                <div style="font-size:.65rem;color:#9ca3af;text-transform:uppercase;letter-spacing:.06em; margin-bottom:3px;">Notes</div>
+                                <span id="detailNotes" style="color:#6b7280;"></span>
+                            </div>
+                        </div>
+                        <!-- Facture liée -->
+                        <div style="background:#f8f9fa; border-radius:10px; padding:14px;">
+                            <div style="font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; margin-bottom:10px;">
+                                <i class="bi bi-receipt me-1" style="color:var(--ks-accent);"></i>Facture liée
+                            </div>
+                            <div id="detailFacture" style="font-size:.84rem; color:#6b7280;">—</div>
+                            <!-- Résumé équipe + matériel -->
+                            <div style="margin-top:14px;">
+                                <div style="font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#6c5ce7; margin-bottom:6px;">
+                                    <i class="bi bi-people me-1"></i>Équipe
+                                </div>
+                                <div id="techniciensList" style="font-size:.8rem;"></div>
+                            </div>
+                            <div style="margin-top:12px;">
+                                <div style="font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#00b894; margin-bottom:6px;">
+                                    <i class="bi bi-box-seam me-1"></i>Matériel
+                                </div>
+                                <div id="materielsList" style="font-size:.8rem;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Actions infos -->
+                    <div style="margin-top:14px; display:flex; gap:8px; justify-content:flex-end;">
+                        <form id="formSuppDetail" method="POST" onsubmit="return confirm('Supprimer cet événement ?')">
+                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                <i class="bi bi-trash me-1"></i>Supprimer
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- ══ ONGLET ÉQUIPE ══ -->
+                <div id="tabEquipe" class="tab-modal-content">
+                    {% if role != 'Lecture seule' %}
+                    <form id="formAssigner">
+                        <div id="technicienCheckboxes" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:380px; overflow-y:auto;">
+                            <div class="text-muted" style="font-size:.78rem;">Chargement...</div>
+                        </div>
+                        <div id="flashAssigner" style="margin-top:8px;"></div>
+                        <button type="submit" class="btn btn-sm mt-3" style="background:#6c5ce7; color:#fff; border:none; border-radius:8px; padding:7px 18px; font-size:.8rem;">
+                            <i class="bi bi-check-lg me-1"></i>Enregistrer l'équipe
+                        </button>
+                    </form>
+                    {% else %}
+                    <div id="technicienCheckboxes"></div>
+                    {% endif %}
+                </div>
+
+                <!-- ══ ONGLET MATÉRIEL ══ -->
+                <div id="tabMateriel" class="tab-modal-content">
+                    {% if role != 'Lecture seule' %}
+                    <div id="materielCheckboxes" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:380px; overflow-y:auto; margin-bottom:8px;">
+                        <div class="text-muted" style="font-size:.78rem;">Chargement...</div>
+                    </div>
+                    <div id="flashMateriel" style="margin-top:6px;"></div>
+                    <button type="button" onclick="sauvegarderMateriel()" class="btn btn-sm mt-2"
+                        style="background:#00b894; color:#fff; border:none; border-radius:8px; padding:7px 18px; font-size:.8rem;">
+                        <i class="bi bi-check-lg me-1"></i>Enregistrer le matériel
+                    </button>
+                    {% else %}
+                    <div id="materielCheckboxes"></div>
+                    {% endif %}
+                </div>
+
+                <!-- ══ ONGLET DÉPENSES ══ -->
+                <div id="tabDepenses" class="tab-modal-content">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div style="font-size:.8rem; font-weight:700; color:#374151;">
+                            <i class="bi bi-cash-coin me-1" style="color:#e94560;"></i>Dépenses de la prestation
+                        </div>
+                        {% if role != 'Lecture seule' %}
+                        <button onclick="ouvrirAjoutDepense()" class="btn btn-sm"
+                            style="background:#e94560;color:#fff;border:none;border-radius:7px;padding:5px 12px;font-size:.78rem;">
+                            <i class="bi bi-plus-lg me-1"></i>Ajouter
+                        </button>
+                        {% endif %}
+                    </div>
+
+                    <!-- Liste dépenses -->
+                    <div id="depensesList" style="font-size:.82rem; min-height:36px; margin-bottom:8px; max-height:200px; overflow-y:auto;"></div>
+
+                    <!-- Totaux -->
+                    <div id="depensesTotaux" style="display:none; background:#f9fafb; border-radius:8px; padding:9px 13px; font-size:.8rem; margin-bottom:10px; border:1px solid #e5e7eb;">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:#065f46;font-weight:700;"><i class="bi bi-check-circle me-1"></i>Total dépenses</span>
+                            <strong id="depTotalPaye" style="color:#065f46;">0 FCFA</strong>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:6px;">
+                            <span style="color:#92400e;font-weight:700;"><i class="bi bi-hourglass-split me-1"></i>En attente</span>
+                            <strong id="depTotalAttente" style="color:#92400e;">0 FCFA</strong>
+                        </div>
+                        <!-- Recettes & solde (affiché si facture liée) -->
+                        <div id="depRecettesWrap" style="display:none; border-top:1px solid #e5e7eb; margin-top:6px; padding-top:6px;">
+                            <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                <span style="color:#0984e3;font-weight:700;"><i class="bi bi-receipt me-1"></i>Recettes (facture)</span>
+                                <strong id="depRecettes" style="color:#0984e3;">0 FCFA</strong>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; background:#fff; border-radius:6px; padding:5px 8px; border:1px solid #e5e7eb;">
+                                <span style="font-weight:800; color:#1a1a2e;"><i class="bi bi-calculator me-1"></i>Solde net</span>
+                                <strong id="depSolde" style="color:#1a1a2e;">0 FCFA</strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Formulaire ajout -->
+                    <div id="formDepenseWrap" style="display:none; background:#f9fafb; border-radius:10px; padding:12px; border:1px solid #e5e7eb;">
+                        <div style="font-size:.75rem; font-weight:700; color:#374151; margin-bottom:10px;">
+                            <i class="bi bi-plus-circle me-1" style="color:#e94560;"></i>Nouvelle dépense
+                        </div>
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px;">
+                            <select id="depType" class="form-select form-select-sm" onchange="onTypeDepenseChange(this.value)">
+                                <option value="">Type de dépense</option>
+                                <option value="Consommable">🔋 Consommable</option>
+                                <option value="Prime technicien">👷 Prime technicien</option>
+                                <option value="Rémunération musicien">🎵 Rémunération musicien</option>
+                                <option value="Autre">📦 Autre</option>
+                            </select>
+                            <input type="number" id="depMontant" class="form-control form-control-sm" placeholder="Montant (FCFA)" min="0">
+                        </div>
+                        <input type="text" id="depDescription" class="form-control form-control-sm mb-2" placeholder="Description de la dépense">
+                        <!-- Bénéficiaire : caché pour Consommable/Autre -->
+                        <div id="formDepenseBenefWrap" style="display:none; margin-bottom:8px;">
+                            <div style="display:flex; gap:6px; margin-bottom:6px;">
+                                <button type="button" id="btnModeTech" onclick="setModeBenef('tech')"
+                                    class="btn btn-sm" style="background:#6c5ce7;color:#fff;border:none;border-radius:7px;font-size:.74rem;flex:1;">
+                                    <i class="bi bi-person-badge me-1"></i>Technicien enregistré
+                                </button>
+                                <button type="button" id="btnModeLibre" onclick="setModeBenef('libre')"
+                                    class="btn btn-sm btn-outline-secondary" style="border-radius:7px;font-size:.74rem;flex:1;">
+                                    <i class="bi bi-pencil me-1"></i>Saisie libre
+                                </button>
+                            </div>
+                            <div style="display:flex; gap:8px;">
+                                <div id="depBenefTechWrap" style="flex:1;">
+                                    <select id="depBenefTech" class="form-select form-select-sm" onchange="onSelectTech(this)">
+                                        <option value="">— Choisir un technicien —</option>
+                                    </select>
+                                </div>
+                                <div id="depBenefLibreWrap" style="flex:1; display:none;">
+                                    <input type="text" id="depBeneficiaire" class="form-control form-control-sm" placeholder="Nom libre...">
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Statut : caché pour Consommable/Autre -->
+                        <div id="depStatutWrap" style="display:none; margin-bottom:8px;">
+                            <select id="depStatut" class="form-select form-select-sm">
+                                <option value="Payé">✅ Déjà payé</option>
+                                <option value="En attente">⏳ En attente</option>
+                            </select>
+                        </div>
+                        <div id="depFlash"></div>
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <button onclick="enregistrerDepense()" class="btn btn-sm"
+                                style="background:#e94560;color:#fff;border:none;border-radius:7px;font-size:.78rem;">
+                                <i class="bi bi-check-lg me-1"></i>Enregistrer
+                            </button>
+                            <button onclick="document.getElementById('formDepenseWrap').style.display='none';"
+                                class="btn btn-sm btn-outline-secondary" style="font-size:.78rem;">Annuler</button>
+                        </div>
+                    </div>
+
+                    <!-- Archiver -->
+                    {% if role != 'Lecture seule' %}
+                    <button id="btnArchiverPrest" onclick="archiverPrestation()" class="btn btn-sm mt-3 w-100"
+                        style="background:linear-gradient(135deg,#1a1a2e,#2d3756);color:#fff;border:none;border-radius:8px;font-size:.78rem;padding:9px;">
+                        <i class="bi bi-archive me-1"></i>Clôturer & Archiver la prestation
+                    </button>
+                    <div id="flashArchive"></div>
+                    {% endif %}
+                </div>
+
+            </div><!-- /modal-body -->
+
+            <!-- FOOTER -->
+            <div class="modal-footer" style="flex-shrink:0; padding:10px 20px; border-top:1px solid #e5e7eb;">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+let evtIdCourant = 0;
+let evtDateCourante = '';
+
+// ── Ouvrir le modal détail ────────────────────────────────────────
+// ── Switch onglets modal ────────────────────────────────────────
+function switchTab(nom, btn) {
+    document.querySelectorAll('.tab-modal-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-modal-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab' + nom.charAt(0).toUpperCase() + nom.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+// Variable globale pour le montant de la facture courante
+let evtFactureMontant = 0;
+let evtFactureId      = null;
+
+function voirDetail(id, titre, date, hd, hf, client, service, section, lieu, statut, notes, factureId, factureNum) {
+    evtIdCourant      = id;
+    evtDateCourante   = '';
+    evtFactureId      = factureId;
+    evtFactureMontant = 0; // sera chargé via API si facture liée
+
+    document.getElementById('detailTitre').textContent   = titre;
+    const metaH = document.getElementById('detailMetaHeader');
+    if (metaH) metaH.textContent = (date || '') + (hd ? '  ·  ' + hd + (hf ? ' – '+hf : '') : '') + (client ? '  ·  ' + client : '');
+    document.getElementById('detailDate').textContent    = date;
+    document.getElementById('detailHeure').textContent   = hd ? (hf ? `${hd} – ${hf}` : hd) : '—';
+    document.getElementById('detailClient').textContent  = client  || '—';
+    document.getElementById('detailSection').textContent = section || '—';
+    document.getElementById('detailLieu').textContent    = lieu    || '—';
+    document.getElementById('detailStatut').textContent  = statut;
+    document.getElementById('detailNotes').textContent   = notes   || '—';
+    // Lien facture
+    const factureSpan = document.getElementById('detailFacture');
+    if (factureId) {
+        factureSpan.innerHTML = `<a href="/factures/apercu/${factureId}" target="_blank"
+            style="color:#e94560; font-weight:600; text-decoration:none;">
+            <i class="bi bi-receipt me-1"></i>${factureNum}
+            <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;"></i>
+        </a>`;
+    } else {
+        factureSpan.innerHTML = '<span style="color:#9ca3af; font-size:.78rem;">Aucune facture liée</span>';
+    }
+    document.getElementById('formSuppDetail').action     = `/agenda/supprimer/${id}`;
+    document.getElementById('btnFichePDF').href = `/agenda/fiche-pdf/${id}`;
+
+    // Convertir dd/mm/yyyy → yyyy-mm-dd
+    const parts = date.split('/');
+    if (parts.length === 3) evtDateCourante = `${parts[2]}-${parts[1]}-${parts[0]}`;
+
+    // Reset → onglet Infos
+    document.querySelectorAll('.tab-modal-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-modal-btn').forEach(b => b.classList.remove('active'));
+    const ti = document.getElementById('tabInfos'); if(ti) ti.classList.add('active');
+    const tb = document.getElementById('tabBtnInfos'); if(tb) tb.classList.add('active');
+
+    // Reset flash
+    const flash = document.getElementById('flashAssigner');
+    if (flash) { flash.textContent = ''; flash.className = ''; flash.style.display = 'none'; }
+
+    // FIX : soumission AJAX pour rester dans le modal
+    const form = document.getElementById('formAssigner');
+    if (form) {
+        form.action = `/agenda/assigner/${id}`;
+        form.onsubmit = function(e) {
+            e.preventDefault();
+            const fd = new FormData(this);
+            fetch(this.action, { method: 'POST', body: fd })
+                .then(r => r.json())
+                .then(data => {
+                    chargerTechniciens(evtIdCourant, evtDateCourante);
+                    if (flash) {
+                        flash.textContent = data.warning ? '⚠️ ' + data.warning : '✅ Équipe enregistrée avec succès !';
+                        flash.className = 'ok';
+                        setTimeout(() => { flash.className = ''; flash.style.display='none'; }, 3000);
+                    }
+                })
+                .catch(() => {
+                    if (flash) { flash.textContent = '❌ Erreur lors de l\'enregistrement.'; flash.className = 'err'; }
+                });
+        };
+    }
+
+    chargerTechniciens(id, evtDateCourante);
+    chargerMateriel(id);
+    chargerDepenses(id);
+    // Charger le montant de la facture liée pour affichage dans dépenses
+    if (factureId) {
+        fetch('/api/facture-montant/' + factureId)
+            .then(r => r.json())
+            .then(d => { evtFactureMontant = d.montant_ttc || 0; })
+            .catch(() => {});
+    }
+    new bootstrap.Modal(document.getElementById('modalDetail')).show();
+}
+
+// ── Charger techniciens disponibles ──────────────────────────────
+function chargerTechniciens(evtId, dateStr) {
+    fetch(`/api/techniciens/disponibles?date=${dateStr}&evt_id=${evtId}`)
+        .then(r => r.json())
+        .then(data => {
+            // Équipe assignée
+            const liste = document.getElementById('techniciensList');
+            const assignes = data.filter(t => t.assigne);
+            liste.innerHTML = assignes.length > 0
+                ? assignes.map(t =>
+                    `<span class="tech-assigne-badge">
+                        <i class="bi bi-person-fill"></i> ${t.nom}
+                        ${t.role_actuel ? `<em style="opacity:.7; font-style:normal;">(${t.role_actuel})</em>` : ''}
+                    </span>`).join('')
+                : '<span style="color:#9ca3af; font-size:.78rem;">Aucun technicien assigné</span>';
+
+            // Checkboxes
+            const zone = document.getElementById('technicienCheckboxes');
+            if (!zone) return;
+            if (data.length === 0) {
+                zone.innerHTML = '<div style="color:#9ca3af; font-size:.78rem; grid-column:1/-1;">Aucun technicien enregistré</div>';
+                return;
+            }
+            zone.innerHTML = data.map(t => `
+                <div class="tech-check-item ${t.assigne ? 'selected' : ''} ${t.occupe && !t.assigne ? 'occupe' : ''}"
+                     onclick="toggleTech(this, ${t.occupe && !t.assigne})" data-id="${t.id}">
+                    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                        <div>
+                            <div class="t-nom">
+                                <input type="checkbox" name="techniciens[]" value="${t.id}"
+                                       ${t.assigne ? 'checked' : ''}
+                                       ${t.occupe && !t.assigne ? 'disabled' : ''}
+                                       style="display:none;" class="tech-chk">
+                                ${t.nom}
+                            </div>
+                            <div class="t-spec">${t.specialite || t.role || '—'}</div>
+                        </div>
+                        <span class="t-badge ${t.occupe ? 'badge-occupe' : 'badge-libre'}">
+                            ${t.occupe ? '⚠ Conflit' : '✓ Libre'}
+                        </span>
+                    </div>
+                    <input type="text" class="role-input" name="roles[]"
+                           placeholder="Rôle (Chef de son, Assistant...)"
+                           value="${t.role_actuel || ''}">
+                </div>`).join('');
+        })
+        .catch(() => {
+            const el = document.getElementById('techniciensList');
+            if (el) el.innerHTML = '<span style="color:#9ca3af; font-size:.78rem;">Impossible de charger les techniciens</span>';
+        });
+}
+
+function toggleTech(el, occupe) {
+    if (occupe) return;
+    el.classList.toggle('selected');
+    const chk = el.querySelector('.tech-chk');
+    if (chk) chk.checked = el.classList.contains('selected');
+}
+
+// ── Charger matériel disponible ──────────────────────────────────
+function chargerMateriel(evtId) {
+    fetch(`/api/materiels/disponibles?evt_id=${evtId}`)
+        .then(r => r.json())
+        .then(data => {
+            // Liste assignée
+            const liste = document.getElementById('materielsList');
+            const assignes = data.filter(m => m.assigne);
+            const provBadge = p => p === 'KS Production'
+                ? '<span style="font-size:.65rem;padding:1px 6px;border-radius:8px;background:#d1fae5;color:#065f46;margin-left:4px;">KS</span>'
+                : p === 'Location'
+                ? '<span style="font-size:.65rem;padding:1px 6px;border-radius:8px;background:#fef3c7;color:#92400e;margin-left:4px;">LOC</span>'
+                : '<span style="font-size:.65rem;padding:1px 6px;border-radius:8px;background:#dbeafe;color:#1e40af;margin-left:4px;">PRÊT</span>';
+
+            liste.innerHTML = assignes.length > 0
+                ? assignes.map(m => `<div style="display:inline-flex;align-items:center;gap:4px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:3px 10px;margin:2px;font-size:.78rem;">
+                    <i class="bi bi-box-seam" style="color:#00b894;"></i>
+                    <strong>${m.nom}</strong> ×${m.qte_assignee}${provBadge(m.provenance)}
+                  </div>`).join('')
+                : '<span style="color:#9ca3af; font-size:.78rem;">Aucun matériel assigné</span>';
+
+            // Checkboxes
+            const zone = document.getElementById('materielCheckboxes');
+            if (!zone) return;
+            if (data.length === 0) {
+                zone.innerHTML = '<div style="color:#9ca3af; font-size:.78rem; grid-column:1/-1;">Aucun matériel enregistré</div>';
+                return;
+            }
+            const provColor = p => p==='KS Production' ? '#065f46' : p==='Location' ? '#92400e' : '#1e40af';
+            const provBg    = p => p==='KS Production' ? '#d1fae5' : p==='Location' ? '#fef3c7' : '#dbeafe';
+            zone.innerHTML = data.map(m => `
+                <div style="background:${m.assigne?'#f0fdf4':'#f9fafb'};border:1.5px solid ${m.assigne?'#86efac':'#e5e7eb'};border-radius:8px;padding:8px 10px;cursor:pointer;"
+                     onclick="toggleMat(this)" data-id="${m.id}">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+                        <div style="font-size:.8rem;font-weight:700;color:#1a1a2e;">
+                            <input type="checkbox" name="materiels[]" value="${m.id}" ${m.assigne?'checked':''} style="display:none;" class="mat-chk">
+                            ${m.nom}
+                        </div>
+                        <span style="font-size:.65rem;padding:1px 7px;border-radius:8px;background:${provBg(m.provenance)};color:${provColor(m.provenance)};font-weight:700;white-space:nowrap;">
+                            ${m.provenance}
+                        </span>
+                    </div>
+                    <div style="font-size:.7rem;color:#6b7280;margin-top:2px;">${m.categorie}${m.marque?' · '+m.marque:''}</div>
+                    <div style="display:flex;gap:6px;margin-top:6px;align-items:center;">
+                        <label style="font-size:.72rem;color:#374151;white-space:nowrap;">Qté :</label>
+                        <input type="number" name="qtes[]" value="${m.qte_assignee||1}" min="1" max="${m.quantite_stock}"
+                               style="width:56px;border:1px solid #e0e0e0;border-radius:6px;padding:2px 6px;font-size:.78rem;"
+                               onclick="event.stopPropagation()">
+                        <input type="text" name="notes_mat[]" placeholder="Note..." value="${m.notes_assignation||''}"
+                               style="flex:1;border:1px solid #e0e0e0;border-radius:6px;padding:2px 6px;font-size:.72rem;"
+                               onclick="event.stopPropagation()">
+                    </div>
+                </div>`).join('');
+        })
+        .catch(() => {
+            const el = document.getElementById('materielsList');
+            if (el) el.innerHTML = '<span style="color:#9ca3af;font-size:.78rem;">Impossible de charger</span>';
+        });
+}
+
+function toggleMat(el) {
+    const chk = el.querySelector('.mat-chk');
+    const on  = !el.classList.contains('mat-sel');
+    el.classList.toggle('mat-sel', on);
+    el.style.background     = on ? '#f0fdf4' : '#f9fafb';
+    el.style.borderColor    = on ? '#86efac' : '#e5e7eb';
+    if (chk) chk.checked = on;
+}
+
+function sauvegarderMateriel() {
+    const zone   = document.getElementById('materielCheckboxes');
+    const flash  = document.getElementById('flashMateriel');
+    const items  = zone.querySelectorAll('input[name="materiels[]"]:checked');
+    const fd     = new FormData();
+    zone.querySelectorAll('[data-id]').forEach(card => {
+        const chk = card.querySelector('.mat-chk');
+        if (chk && chk.checked) {
+            fd.append('materiels[]', card.dataset.id);
+            const qte  = card.querySelector('input[name="qtes[]"]');
+            const note = card.querySelector('input[name="notes_mat[]"]');
+            fd.append('qtes[]',     qte  ? qte.value  : '1');
+            fd.append('notes_mat[]', note ? note.value : '');
+        }
+    });
+    fetch(`/agenda/assigner-materiel/${evtIdCourant}`, { method:'POST', body:fd })
+        .then(r => r.json())
+        .then(d => {
+            chargerMateriel(evtIdCourant);
+            if (flash) {
+                flash.textContent = `✅ ${d.nb} matériel(s) enregistré(s) !`;
+                flash.style.cssText = 'color:#065f46;font-size:.78rem;margin-top:6px;';
+                setTimeout(() => { flash.textContent = ''; }, 3000);
+            }
+        })
+        .catch(() => {
+            if (flash) { flash.textContent = '❌ Erreur.'; flash.style.color = '#e94560'; }
+        });
+}
+
+
+// ── Dépenses de prestation ────────────────────────────────────
+function chargerDepenses(evtId) {
+    fetch('/api/depenses/' + evtId)
+        .then(r => r.json())
+        .then(data => {
+            const liste   = document.getElementById('depensesList');
+            const totaux  = document.getElementById('depensesTotaux');
+            const depenses = data.depenses || [];
+            const fmt = v => new Intl.NumberFormat('fr-FR').format(v) + ' FCFA';
+
+            if (depenses.length === 0) {
+                liste.innerHTML = '<span style="color:#9ca3af;font-size:.78rem;">Aucune dépense enregistrée</span>';
+                totaux.style.display = 'none';
+            } else {
+                liste.innerHTML = depenses.map(d => `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:7px;margin-bottom:4px;background:${d.statut==='Payé'?'#f0fdf4':'#fffbeb'};border:1px solid ${d.statut==='Payé'?'#bbf7d0':'#fde68a'};">
+                        <div style="flex:1;">
+                            <span style="font-size:.8rem;font-weight:700;color:#1a1a2e;">${d.description}</span>
+                            ${d.beneficiaire ? `<span style="font-size:.72rem;color:#6b7280;margin-left:6px;">${d.beneficiaire}</span>` : ''}
+                            <span style="font-size:.68rem;padding:1px 6px;border-radius:6px;margin-left:6px;background:${d.statut==='Payé'?'#d1fae5':'#fef3c7'};color:${d.statut==='Payé'?'#065f46':'#92400e'};font-weight:700;">${d.statut}</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <strong style="font-size:.82rem;color:${d.statut==='Payé'?'#065f46':'#92400e'};">${fmt(d.montant)}</strong>
+                            <button onclick="supprimerDepense(${d.id})" style="background:none;border:none;color:#e94560;cursor:pointer;font-size:.8rem;padding:0 3px;" title="Supprimer">✕</button>
+                        </div>
+                    </div>`).join('');
+
+                document.getElementById('depTotalPaye').textContent    = fmt(data.total_paye);
+                document.getElementById('depTotalAttente').textContent = fmt(data.total_attente);
+                totaux.style.display = 'block';
+                // Badge onglet
+                const badge = document.getElementById('badgeDepenses');
+                if (badge) { badge.textContent = depenses.length; badge.style.display = 'inline'; }
+                // Recettes & solde
+                const recWrap = document.getElementById('depRecettesWrap');
+                if (evtFactureMontant > 0) {
+                    const solde = evtFactureMontant - data.total_paye;
+                    document.getElementById('depRecettes').textContent = fmt(evtFactureMontant);
+                    const soldeEl = document.getElementById('depSolde');
+                    soldeEl.textContent = fmt(solde);
+                    soldeEl.style.color = solde >= 0 ? '#065f46' : '#991b1b';
+                    recWrap.style.display = 'block';
+                } else {
+                    recWrap.style.display = 'none';
+                }
+            }
+        })
+        .catch(() => {
+            document.getElementById('depensesList').innerHTML = '<span style="color:#9ca3af;font-size:.78rem;">Impossible de charger</span>';
+        });
+}
+
+function ouvrirAjoutDepense() {
+    document.getElementById('formDepenseWrap').style.display = 'block';
+    document.getElementById('depType').value        = '';
+    document.getElementById('depDescription').value = '';
+    document.getElementById('depBeneficiaire').value= '';
+    document.getElementById('depMontant').value     = '';
+    document.getElementById('depStatutWrap').style.display = 'none';
+    // Charger les techniciens dans le dropdown
+    chargerTechniciensBenef();
+    setModeBenef('tech');
+}
+
+function onTypeDepenseChange(val) {
+    // Champs bénéficiaire : visible seulement pour Prime/Musicien
+    const benefWrap  = document.getElementById('formDepenseBenefWrap');
+    const statutWrap = document.getElementById('depStatutWrap');
+    const isPersoPay = val === 'Prime technicien' || val === 'Rémunération musicien';
+
+    // Afficher/masquer bénéficiaire
+    if (benefWrap) benefWrap.style.display = isPersoPay ? 'block' : 'none';
+    // Afficher/masquer statut
+    statutWrap.style.display = isPersoPay ? 'block' : 'none';
+
+    if (!isPersoPay) {
+        // Consommable/Autre : toujours Payé, pas de bénéficiaire
+        document.getElementById('depStatut').value = 'Payé';
+    }
+
+    // Auto-pré-remplir description selon type
+    const desc = document.getElementById('depDescription');
+    if (!desc.value) {
+        if (val === 'Consommable') desc.placeholder = 'Ex: Piles micros x4, Câble XLR...';
+        else if (val === 'Prime technicien') desc.placeholder = 'Ex: Prime prestation mariage';
+        else if (val === 'Rémunération musicien') desc.placeholder = 'Ex: Rémunération DJ Kodjo';
+        else desc.placeholder = 'Description de la dépense';
+    }
+    // Pour Prime → activer mode technicien par défaut
+    if (val === 'Prime technicien') setModeBenef('tech');
+    else if (val === 'Rémunération musicien') setModeBenef('libre');
+}
+
+function setModeBenef(mode) {
+    const wTech  = document.getElementById('depBenefTechWrap');
+    const wLibre = document.getElementById('depBenefLibreWrap');
+    const btnT   = document.getElementById('btnModeTech');
+    const btnL   = document.getElementById('btnModeLibre');
+    if (mode === 'tech') {
+        wTech.style.display  = 'flex'; wLibre.style.display = 'none';
+        btnT.style.background = '#6c5ce7'; btnT.style.color = '#fff';
+        btnL.style.background = ''; btnL.style.color = '';
+    } else {
+        wTech.style.display  = 'none'; wLibre.style.display = 'flex';
+        btnL.style.background = '#6c5ce7'; btnL.style.color = '#fff';
+        btnT.style.background = ''; btnT.style.color = '';
+    }
+}
+
+function onSelectTech(sel) {
+    // Auto-remplir la description si Prime technicien sélectionné
+    if (sel.value && document.getElementById('depType').value === 'Prime technicien') {
+        const nom = sel.options[sel.selectedIndex].text.split(' —')[0].trim();
+        const desc = document.getElementById('depDescription');
+        if (!desc.value) desc.value = 'Prime — ' + nom;
+    }
+}
+
+function chargerTechniciensBenef() {
+    // Récupérer la liste depuis l'API techniciens déjà chargée
+    fetch('/api/techniciens/disponibles?date=&evt_id=' + evtIdCourant)
+        .then(r => r.json())
+        .then(data => {
+            const sel = document.getElementById('depBenefTech');
+            sel.innerHTML = '<option value="">— Choisir un technicien —</option>';
+            data.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id;
+                opt.text  = t.nom + (t.specialite ? ' — ' + t.specialite : '');
+                sel.appendChild(opt);
+            });
+        })
+        .catch(() => {});
+}
+
+function enregistrerDepense() {
+    const type     = document.getElementById('depType').value;
+    const flash    = document.getElementById('depFlash');
+    const montant  = document.getElementById('depMontant').value;
+    const statut   = document.getElementById('depStatut').value;
+
+    // Bénéficiaire : technicien sélectionné ou saisie libre
+    const benefWrapVisible = document.getElementById('formDepenseBenefWrap').style.display !== 'none';
+    const modeTech = benefWrapVisible && document.getElementById('depBenefTechWrap').style.display !== 'none';
+    let benef  = '';
+    let techId = null;
+    if (benefWrapVisible) {
+        if (modeTech) {
+            const sel = document.getElementById('depBenefTech');
+            benef  = sel.options[sel.selectedIndex]?.text?.replace('— Choisir un technicien —','').trim() || '';
+            techId = sel.value || null;
+        } else {
+            benef = document.getElementById('depBeneficiaire').value.trim();
+        }
+    }
+
+    // Description : auto-remplie pour Prime/Rémunération si vide
+    let desc = document.getElementById('depDescription').value.trim();
+    const isPersoPay = type === 'Prime technicien' || type === 'Rémunération musicien';
+    if (!desc && isPersoPay) {
+        desc = benef ? type + ' — ' + benef : type;
+        document.getElementById('depDescription').value = desc;
+    }
+
+    // Validations
+    if (!type) {
+        flash.innerHTML = '<div style="color:#e94560;font-size:.78rem;margin-top:4px;">⚠ Sélectionnez un type de dépense.</div>';
+        return;
+    }
+    if (!montant || parseFloat(montant) <= 0) {
+        flash.innerHTML = '<div style="color:#e94560;font-size:.78rem;margin-top:4px;">⚠ Saisissez un montant valide.</div>';
+        return;
+    }
+    if (!desc) {
+        flash.innerHTML = '<div style="color:#e94560;font-size:.78rem;margin-top:4px;">⚠ Saisissez une description.</div>';
+        return;
+    }
+    flash.innerHTML = '';
+    const fd = new FormData();
+    fd.append('type_depense', type);
+    fd.append('description', desc);
+    fd.append('beneficiaire', benef);
+    if (techId) fd.append('technicien_id', techId);
+    fd.append('montant', montant);
+    fd.append('statut', statut);
+
+    fetch('/agenda/depenses/ajouter/' + evtIdCourant, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                document.getElementById('formDepenseWrap').style.display = 'none';
+                chargerDepenses(evtIdCourant);
+                // Reçu uniquement pour Prime/Rémunération payées
+                if (d.statut === 'Payé' && d.recu_id && d.necessite_recu) {
+                    const recuUrl = '/paie/recu/' + d.recu_id;
+                    if (typeof window.openNativeWindow === 'function') {
+                        window.openNativeWindow(recuUrl, 'Reçu — ' + d.recu_id);
+                    } else {
+                        window.open(recuUrl, '_blank');
+                    }
+                }
+            } else { flash.innerHTML = '<div style="color:#e94560;font-size:.78rem;">Erreur.</div>'; }
+        });
+}
+
+function supprimerDepense(depId) {
+    if (!confirm('Supprimer cette dépense ?')) return;
+    fetch('/agenda/depenses/supprimer/' + depId, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.ok) chargerDepenses(evtIdCourant); });
+}
+
+function archiverPrestation() {
+    const flash = document.getElementById('flashArchive');
+    if (!confirm('Clôturer et archiver cette prestation ? \n\nLes dépenses payées seront enregistrées dans les Opérations.')) return;
+    const fd = new FormData();
+    fetch('/agenda/prestation/archiver/' + evtIdCourant, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                flash.innerHTML = `<div style="color:#065f46;font-size:.78rem;margin-top:6px;padding:6px 10px;background:#d1fae5;border-radius:8px;">
+                    ✅ Archivée ! Dépenses : ${new Intl.NumberFormat('fr-FR').format(d.total_depenses)} FCFA
+                </div>`;
+                document.getElementById('btnArchiverPrest').disabled = true;
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                flash.innerHTML = `<div style="color:#991b1b;font-size:.78rem;margin-top:6px;">${d.error || 'Erreur'}</div>`;
+            }
+        });
+}
+
+// ── Calendrier ───────────────────────────────────────────────────
+function preRemplirDate(jour, mois, annee) {
+    const m = String(mois).padStart(2,'0');
+    const j = String(jour).padStart(2,'0');
+    document.getElementById('inputDate').value = `${annee}-${m}-${j}`;
+    new bootstrap.Modal(document.getElementById('modalNouvelEvenement')).show();
+}
+
+function ouvrirJour(jour) {
+    preRemplirDate(jour, {{ mois }}, {{ annee }});
+}
+</script>
+<script>
+// ── CLOCHE ALERTES ──
+let alertesOuvert = false;
+function toggleAlertes() {
+    const panneau = document.getElementById('panneauAlertes');
+    alertesOuvert = !alertesOuvert;
+    panneau.style.display = alertesOuvert ? 'block' : 'none';
+    if (alertesOuvert) chargerAlertes();
+}
+document.addEventListener('click', function(e) {
+    const btn = document.getElementById('btnCloche');
+    const panneau = document.getElementById('panneauAlertes');
+    if (btn && panneau && !btn.contains(e.target) && !panneau.contains(e.target)) {
+        panneau.style.display = 'none'; alertesOuvert = false;
+    }
+});
+function chargerAlertes() {
+    fetch('/api/alertes').then(r => r.json()).then(data => {
+        const liste = document.getElementById('listeAlertes');
+        const badge = document.getElementById('badgeAlertes');
+        const nbHead = document.getElementById('nbAlertesHead');
+        const icone = document.getElementById('iconeCloche');
+        const nb = data.length;
+        nbHead.textContent = nb;
+        if (nb > 0) { badge.textContent = nb > 9 ? '9+' : nb; badge.style.display = 'flex'; icone.style.color = '#e94560'; }
+        else { badge.style.display = 'none'; icone.style.color = '#6b7280'; }
+        if (data.length === 0) {
+            liste.innerHTML = `<div style="text-align:center; padding:24px; color:#9ca3af;"><i class="bi bi-check-circle" style="font-size:2rem; color:#10b981; display:block; margin-bottom:8px;"></i><div style="font-size:.82rem;">Aucune prestation imminente</div></div>`;
+            return;
+        }
+        liste.innerHTML = data.map(a => `
+            <div style="padding:10px 12px; border-radius:10px; margin-bottom:6px; display:flex; gap:10px; border-left:4px solid ${a.niveau=='danger'?'#e94560':a.niveau=='warning'?'#f59e0b':'#6c5ce7'}; background:${a.niveau=='danger'?'#fff5f7':a.niveau=='warning'?'#fffbeb':'#f5f3ff'}; cursor:pointer;" onclick="window.location='/agenda'">
+                <div style="flex:1; min-width:0;">
+                    <div style="display:flex; justify-content:space-between; gap:4px;">
+                        <div style="font-size:.8rem; font-weight:700; color:#1a1a2e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${a.titre}</div>
+                        <span style="font-size:.68rem; font-weight:700; padding:1px 7px; border-radius:10px; background:${a.niveau=='danger'?'#fee2e2':a.niveau=='warning'?'#fef3c7':'#ede9fe'}; color:${a.niveau=='danger'?'#991b1b':a.niveau=='warning'?'#92400e':'#5b21b6'}; flex-shrink:0;">${a.label}</span>
+                    </div>
+                    <div style="font-size:.7rem; color:#6b7280; margin-top:2px;">
+                        <i class="bi bi-calendar3 me-1"></i>${a.date}
+                        ${a.heure ? `<i class="bi bi-clock ms-2 me-1"></i>${a.heure}` : ''}
+                        ${a.client ? `<i class="bi bi-person ms-2 me-1"></i>${a.client}` : ''}
+                    </div>
+                </div>
+            </div>`).join('');
+    }).catch(() => {});
+}
+function initBadgeAlertes() {
+    fetch('/api/alertes').then(r => r.json()).then(data => {
+        const badge = document.getElementById('badgeAlertes');
+        const icone = document.getElementById('iconeCloche');
+        if (data.length > 0) { badge.textContent = data.length > 9 ? '9+' : data.length; badge.style.display = 'flex'; icone.style.color = '#e94560'; }
+    }).catch(() => {});
+}
+document.addEventListener('DOMContentLoaded', initBadgeAlertes);
+</script>
+</body>
+</html>

@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiche de Prestation — {{ evt.titre }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --accent: {{ params.couleur_principale if params else '#e94560' }};
+            --dark:   #1a1a2e;
+            --gray:   #6b7280;
+            --border: #e5e7eb;
+            --light:  #f9fafb;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #eef0f4; font-family: 'Segoe UI', Arial, sans-serif; color: #374151; }
+
+        /* ── TOOLBAR ── */
+        .toolbar {
+            background: #0f0f1e; padding: 10px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--accent);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .toolbar .brand { color: #fff; font-weight: 700; font-size: .92rem; }
+        .toolbar .brand em { color: var(--accent); font-style: normal; }
+        .toolbar .brand small { display: block; font-size: .68rem; color: rgba(255,255,255,.35); font-weight: 400; }
+        .tb-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+        .btn-tb {
+            border: none; padding: 7px 15px; border-radius: 8px; font-size: .8rem;
+            cursor: pointer; display: flex; align-items: center; gap: 6px;
+            font-weight: 600; text-decoration: none; transition: opacity .15s;
+        }
+        .btn-tb:hover   { opacity: .85; }
+        .btn-tb:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-back  { background: rgba(255,255,255,.12); color: #fff; }
+        .btn-print { background: #6b7280; color: #fff; }
+        .btn-save  { background: var(--accent); color: #fff; }
+        .btn-wa    { background: #25d366; color: #fff; }
+        .btn-mail  { background: #0984e3; color: #fff; }
+
+        /* ── PAGE ── */
+        .page-wrap { max-width: 820px; margin: 28px auto 60px; padding: 0 16px; }
+        .fiche {
+            background: #fff; border-radius: 4px;
+            box-shadow: 0 2px 20px rgba(0,0,0,.09); overflow: hidden;
+        }
+
+        /* Liseré haut */
+        .top-band {
+            height: 6px;
+            background: linear-gradient(90deg, var(--accent) 0%, #6c5ce7 50%, var(--accent) 100%);
+        }
+        .fiche-inner { padding: 38px 48px 40px; }
+
+        /* ── EN-TÊTE ── */
+        .entete { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; }
+        .logo-zone { display: flex; flex-direction: column; align-items: flex-start; }
+        .logo-zone img { height: 72px; width: auto; object-fit: contain; margin-bottom: 10px; }
+        .logo-placeholder {
+            width: 64px; height: 64px; border-radius: 14px;
+            background: linear-gradient(135deg, var(--accent), #6c5ce7);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1.6rem; margin-bottom: 10px;
+        }
+        .company-name { font-size: 1.25rem; font-weight: 800; color: var(--dark); }
+        .company-tag  { font-size: .74rem; color: var(--gray); margin-top: 2px; }
+        .company-contacts { margin-top: 8px; font-size: .72rem; color: #555; }
+        .company-contacts div { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+        .company-contacts i { color: var(--accent); font-size: .74rem; }
+
+        .titre-zone { text-align: right; }
+        .doc-label { font-size: .64rem; text-transform: uppercase; letter-spacing: .14em; color: var(--gray); font-weight: 700; }
+        .doc-title { font-size: 1.7rem; font-weight: 900; color: var(--dark); letter-spacing: -.02em; line-height: 1.1; margin-top: 2px; }
+        .doc-ref   { font-size: .85rem; color: var(--accent); font-weight: 700; margin-top: 4px; }
+        .doc-date  { font-size: .72rem; color: var(--gray); margin-top: 3px; }
+
+        /* Badge statut */
+        .badge-statut {
+            display: inline-flex; align-items: center; gap: 5px;
+            padding: 4px 14px; border-radius: 20px; font-size: .75rem; font-weight: 700;
+            margin-top: 10px;
+        }
+        .s-confirme  { background: #d1fae5; color: #065f46; }
+        .s-tentative { background: #fef3c7; color: #92400e; }
+        .s-annule    { background: #fee2e2; color: #991b1b; }
+
+        /* ── SÉPARATEUR ── */
+        .sep {
+            height: 3px; border-radius: 2px; margin: 0 0 28px;
+            background: linear-gradient(90deg, var(--accent), #6c5ce7, transparent);
+        }
+
+        /* ── TITRE PRESTATION ── */
+        .prest-bloc { margin-bottom: 26px; }
+        .prest-titre { font-size: 1.6rem; font-weight: 900; color: var(--dark); letter-spacing: -.02em; }
+
+        /* ── SECTION HEADER (style fiche tarifs) ── */
+        .section-header {
+            display: flex; align-items: center; gap: 12px;
+            padding: 11px 18px; border-radius: 10px; margin-bottom: 12px;
+        }
+        .section-header.info    { background: linear-gradient(135deg, var(--dark), #2d3756); }
+        .section-header.notes   { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .section-header.equipe  { background: linear-gradient(135deg, #6c5ce7, #a29bfe); }
+        .section-header.facture { background: linear-gradient(135deg, #00b894, #00cec9); }
+
+        .section-icon {
+            width: 38px; height: 38px; border-radius: 9px;
+            background: rgba(255,255,255,.2);
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1rem; flex-shrink: 0;
+        }
+        .section-label { font-size: .9rem; font-weight: 700; color: #fff; }
+        .section-sub   { font-size: .7rem; color: rgba(255,255,255,.7); margin-top: 1px; }
+
+        /* ── GRILLE INFOS ── */
+        .info-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 8px; }
+        .info-cell {
+            background: var(--light); border: 1px solid var(--border);
+            border-radius: 9px; padding: 11px 14px;
+        }
+        .ic-label { font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--gray); font-weight: 700; margin-bottom: 4px; }
+        .ic-value { font-size: .9rem; font-weight: 700; color: var(--dark); line-height: 1.3; }
+
+        /* ── NOTES ── */
+        .notes-box {
+            background: #fffbeb; border: 1px solid #f59e0b; border-left: 4px solid #f59e0b;
+            border-radius: 9px; padding: 13px 16px; font-size: .86rem; color: var(--dark); line-height: 1.6;
+        }
+
+        /* ── TABLE ÉQUIPE ── */
+        .equipe-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        .tech-card {
+            background: var(--light); border: 1px solid var(--border);
+            border-radius: 9px; padding: 13px 15px;
+            display: flex; align-items: center; gap: 12px;
+        }
+        .tech-avatar {
+            width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+            background: linear-gradient(135deg, #6c5ce7, var(--accent));
+            display: flex; align-items: center; justify-content: center;
+            color: #fff; font-size: 1rem; font-weight: 700;
+        }
+        .tech-nom  { font-size: .88rem; font-weight: 700; color: var(--dark); }
+        .tech-spe  { font-size: .74rem; color: var(--accent); font-weight: 600; margin-top: 1px; }
+        .tech-role { font-size: .72rem; color: var(--gray); margin-top: 2px; }
+        .tech-tel  { font-size: .7rem; color: var(--gray); margin-top: 3px; display: flex; align-items: center; gap: 4px; }
+
+        .empty-state { color: var(--gray); font-size: .85rem; font-style: italic; padding: 8px 2px; }
+
+        /* ── TABLE MATÉRIEL ── */
+        .mat-table { width:100%; border-collapse:collapse; font-size:.84rem; }
+        .mat-table thead tr { background: linear-gradient(135deg, #00b894, #00cec9); }
+        .mat-table thead th { padding:10px 13px; font-size:.7rem; text-transform:uppercase; letter-spacing:.07em; font-weight:600; color:#fff; text-align:left; }
+        .mat-table tbody tr { border-bottom:1px solid var(--border); }
+        .mat-table tbody tr:nth-child(even) { background:#fafafa; }
+        .mat-table tbody td { padding:10px 13px; vertical-align:middle; }
+        .prov-badge { display:inline-flex; align-items:center; gap:3px; padding:2px 8px; border-radius:8px; font-size:.7rem; font-weight:700; }
+        .prov-ks    { background:#d1fae5; color:#065f46; }
+        .prov-loc   { background:#fef3c7; color:#92400e; }
+        .prov-pret  { background:#dbeafe; color:#1e40af; }
+
+        /* ── SECTION FACTURE ── */
+        .fac-row {
+            display: grid; grid-template-columns: 1.6fr 1.6fr 1.3fr 1fr;
+            gap: 0; border: 1px solid var(--border); border-radius: 9px; overflow: hidden;
+        }
+        .fac-head { display: contents; }
+        .fac-head span {
+            background: var(--light); padding: 9px 14px;
+            font-size: .63rem; text-transform: uppercase; letter-spacing: .1em;
+            color: var(--gray); font-weight: 700; border-bottom: 1px solid var(--border);
+        }
+        .fac-data { display: contents; }
+        .fac-data > div { padding: 12px 14px; font-size: .88rem; }
+        .fac-num  { font-weight: 700; color: var(--accent); }
+        .fac-cli  { font-weight: 600; color: var(--dark); }
+        .fac-mtt  { font-weight: 700; color: var(--dark); }
+        .badge-paye    { display:inline-flex;align-items:center;gap:3px;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;background:#d1fae5;color:#065f46; }
+        .badge-impaye  { display:inline-flex;align-items:center;gap:3px;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;background:#fee2e2;color:#991b1b; }
+        .badge-partiel { display:inline-flex;align-items:center;gap:3px;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;background:#fef3c7;color:#92400e; }
+
+        /* ── MENTION DEVIS (style fiche tarifs) ── */
+        .mention-bloc {
+            background: linear-gradient(135deg, var(--dark), #2d3436);
+            border-radius: 10px; padding: 15px 20px; margin-top: 24px;
+            display: flex; align-items: center; gap: 14px; color: #fff;
+        }
+        .mention-icon {
+            width: 40px; height: 40px; border-radius: 10px; background: var(--accent);
+            display: flex; align-items: center; justify-content: center; font-size: 1rem; flex-shrink: 0;
+        }
+        .mention-title { font-size: .86rem; font-weight: 700; }
+        .mention-text  { font-size: .72rem; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+        /* ── PIED ── */
+        .fiche-footer {
+            border-top: 1px solid var(--border); padding-top: 16px; margin-top: 24px;
+            display: flex; justify-content: space-between; align-items: flex-end;
+        }
+        .footer-left { font-size: .7rem; color: #9ca3af; line-height: 1.6; }
+        .sig-wrap { text-align: center; }
+        .sig-box  { width: 138px; height: 54px; border: 1.5px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #d1d5db; }
+        .sig-label { font-size: .66rem; color: #9ca3af; margin-top: 4px; }
+
+        /* ── PRINT ── */
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { background: #fff !important; }
+            .toolbar { display: none !important; }
+            .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+            .fiche { box-shadow: none !important; border-radius: 0 !important; }
+            .fiche-inner { padding: 24px 36px; }
+            .section-header.info    { background: linear-gradient(135deg, var(--dark), #2d3756) !important; }
+            .section-header.notes   { background: linear-gradient(135deg, #f59e0b, #d97706) !important; }
+            .section-header.equipe  { background: linear-gradient(135deg, #6c5ce7, #a29bfe) !important; }
+            .section-header.facture { background: linear-gradient(135deg, #00b894, #00cec9) !important; }
+            .mention-bloc { background: linear-gradient(135deg, #1a1a2e, #2d3436) !important; }
+            @page { margin: 8mm; size: A4; }
+        }
+
+        /* ── MOBILE ── */
+        @media (max-width: 600px) {
+            .toolbar { flex-direction: column; gap: 10px; align-items: flex-start; padding: 10px 16px; }
+            .tb-btns { width: 100%; }
+            .btn-tb { font-size: .75rem; padding: 5px 10px; }
+            .fiche-inner { padding: 20px 18px; }
+            .entete { flex-direction: column; gap: 14px; }
+            .titre-zone { text-align: left; }
+            .info-grid { grid-template-columns: 1fr 1fr; }
+            .equipe-grid { grid-template-columns: 1fr; }
+            .fac-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══ TOOLBAR ═══════════════════════════════════════════════════════ -->
+<div class="toolbar d-print-none">
+    <div class="brand">
+        🎵 {{ params.nom_entreprise if params else 'KS Production' }} — <em>Fiche de Prestation</em>
+        <small>{{ evt.titre }} · {{ evt.date.strftime('%d/%m/%Y') }}</small>
+    </div>
+    <div class="tb-btns">
+        <button class="btn-tb btn-back" onclick="fermerFenetre()">
+            <i class="bi bi-arrow-left"></i> Retour
+        </button>
+        <button class="btn-tb btn-print" onclick="window.print()">
+            <i class="bi bi-printer"></i> Imprimer
+        </button>
+        <button class="btn-tb btn-save" id="btnSave" onclick="enregistrerPDF()">
+            <i class="bi bi-file-earmark-pdf"></i> Enregistrer PDF
+        </button>
+        <button class="btn-tb btn-wa" id="btnWA" onclick="partager('whatsapp')">
+            <i class="bi bi-whatsapp"></i> WhatsApp
+        </button>
+        <button class="btn-tb btn-mail" id="btnMail" onclick="partager('email')">
+            <i class="bi bi-envelope"></i> E-mail
+        </button>
+    </div>
+</div>
+
+<!-- ══ PAGE ══════════════════════════════════════════════════════════ -->
+<div class="page-wrap" id="zonePDF">
+<div class="fiche">
+    <div class="top-band"></div>
+    <div class="fiche-inner">
+
+        <!-- EN-TÊTE -->
+        <div class="entete">
+            <div class="logo-zone">
+                {% if params and params.logo_filename %}
+                    <img src="/static/uploads/{{ params.logo_filename }}" alt="Logo">
+                {% else %}
+                    <div class="logo-placeholder">🎵</div>
+                {% endif %}
+                <div class="company-name">{{ params.nom_entreprise if params else 'KS Production' }}</div>
+                <div class="company-tag">{{ params.slogan if params else 'Studio d\'Enregistrement & Sonorisation' }}</div>
+                {% if params %}
+                <div class="company-contacts">
+                    {% if params.telephone %}<div><i class="bi bi-telephone-fill"></i> {{ params.telephone }}</div>{% endif %}
+                    {% if params.email %}<div><i class="bi bi-envelope-fill"></i> {{ params.email }}</div>{% endif %}
+                    {% if params.adresse %}<div><i class="bi bi-geo-alt-fill"></i> {{ params.adresse }}</div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="titre-zone">
+                <div class="doc-label">Document officiel</div>
+                <div class="doc-title">FICHE DE<br>PRESTATION</div>
+                <div class="doc-ref">Réf. EVT-{{ '%04d' % evt.id }}</div>
+                <div class="doc-date">{{ evt.date.strftime('%d/%m/%Y') }}</div>
+                {% if evt.statut == 'Confirmé' %}
+                    <span class="badge-statut s-confirme"><i class="bi bi-check-circle-fill"></i> Confirmé</span>
+                {% elif evt.statut == 'Tentative' %}
+                    <span class="badge-statut s-tentative"><i class="bi bi-exclamation-circle-fill"></i> Tentative</span>
+                {% else %}
+                    <span class="badge-statut s-annule"><i class="bi bi-x-circle-fill"></i> Annulé</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- TITRE PRESTATION -->
+        <div class="prest-bloc">
+            <div class="prest-titre">{{ evt.titre | upper }}</div>
+        </div>
+
+        <!-- INFORMATIONS GÉNÉRALES -->
+        <div class="section-header info">
+            <div class="section-icon"><i class="bi bi-info-circle-fill"></i></div>
+            <div>
+                <div class="section-label">Informations générales</div>
+                <div class="section-sub">Détails de la prestation</div>
+            </div>
+        </div>
+        <div class="info-grid">
+            <div class="info-cell">
+                <div class="ic-label">Date</div>
+                <div class="ic-value">{{ evt.date.strftime('%d/%m/%Y') }}</div>
+            </div>
+            <div class="info-cell">
+                <div class="ic-label">Horaire</div>
+                <div class="ic-value">
+                    {% if evt.heure_debut %}
+                        {{ evt.heure_debut }}{% if evt.heure_fin %} — {{ evt.heure_fin }}{% endif %}
+                    {% else %}—{% endif %}
+                </div>
+            </div>
+            <div class="info-cell">
+                <div class="ic-label">Section</div>
+                <div class="ic-value">{{ evt.section or '—' }}</div>
+            </div>
+        </div>
+        <div class="info-grid" style="margin-top:0; margin-bottom:24px;">
+            <div class="info-cell">
+                <div class="ic-label">Client</div>
+                <div class="ic-value">{{ evt.nom_client or '—' }}</div>
+            </div>
+            <div class="info-cell">
+                <div class="ic-label">Lieu</div>
+                <div class="ic-value">{{ evt.lieu or '—' }}</div>
+            </div>
+            <div class="info-cell">
+                <div class="ic-label">Service</div>
+                <div class="ic-value">{{ evt.service or '—' }}</div>
+            </div>
+        </div>
+
+        <!-- NOTES -->
+        {% if evt.notes %}
+        <div class="section-header notes">
+            <div class="section-icon"><i class="bi bi-chat-left-text-fill"></i></div>
+            <div>
+                <div class="section-label">Notes & Instructions</div>
+                <div class="section-sub">Consignes pour l'équipe</div>
+            </div>
+        </div>
+        <div class="notes-box" style="margin-bottom:24px;">{{ evt.notes }}</div>
+        {% endif %}
+
+        <!-- ÉQUIPE TECHNIQUE -->
+        <div class="section-header equipe">
+            <div class="section-icon"><i class="bi bi-people-fill"></i></div>
+            <div>
+                <div class="section-label">Équipe technique</div>
+                <div class="section-sub">{{ techniciens|length }} technicien(s) assigné(s)</div>
+            </div>
+        </div>
+        {% if techniciens %}
+        <div class="equipe-grid" style="margin-bottom:24px;">
+            {% for at, tech in techniciens %}
+            <div class="tech-card">
+                <div class="tech-avatar">{{ tech.nom[0] | upper }}</div>
+                <div>
+                    <div class="tech-nom">{{ tech.nom }}</div>
+                    {% if tech.specialite %}<div class="tech-spe">{{ tech.specialite }}</div>{% endif %}
+                    {% if at.role %}<div class="tech-role"><i class="bi bi-briefcase me-1"></i>{{ at.role }}</div>{% endif %}
+                    {% if tech.telephone %}<div class="tech-tel"><i class="bi bi-telephone"></i> {{ tech.telephone }}</div>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state" style="margin-bottom:24px;">
+            <i class="bi bi-person-x me-1"></i> Aucun technicien assigné à cette prestation.
+        </p>
+        {% endif %}
+
+        <!-- MATÉRIEL -->
+        {% if materiels %}
+        <div class="section-header" style="background:linear-gradient(135deg,#00b894,#00cec9); margin-top:0;">
+            <div class="section-icon"><i class="bi bi-box-seam-fill"></i></div>
+            <div>
+                <div class="section-label">Matériel assigné</div>
+                <div class="section-sub">{{ materiels|length }} équipement(s) · {% set nb_loc = materiels|selectattr('1.provenance','equalto','Location')|list|length %}{% if nb_loc %}{{ nb_loc }} en location{% endif %}</div>
+            </div>
+        </div>
+        <table class="mat-table" style="margin-bottom:24px;">
+            <thead>
+                <tr>
+                    <th>Équipement</th>
+                    <th>Catégorie</th>
+                    <th style="text-align:center;">Qté</th>
+                    <th>Provenance</th>
+                    <th>Fournisseur</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for em, mat in materiels %}
+            <tr>
+                <td><strong>{{ mat.nom }}</strong>{% if mat.marque %}<br><span style="font-size:.74rem;color:var(--gray);">{{ mat.marque }}{% if mat.modele %} {{ mat.modele }}{% endif %}</span>{% endif %}</td>
+                <td style="color:var(--gray); font-size:.8rem;">{{ mat.categorie or '—' }}</td>
+                <td style="text-align:center; font-weight:700;">{{ em.quantite }}</td>
+                <td>
+                    {% if mat.provenance == 'KS Production' %}
+                        <span class="prov-badge prov-ks">🏢 KS Production</span>
+                    {% elif mat.provenance == 'Location' %}
+                        <span class="prov-badge prov-loc">💰 Location{% if mat.cout_location %} · {{ "{:,.0f}".format(mat.cout_location).replace(',', ' ') }} F/j{% endif %}</span>
+                    {% else %}
+                        <span class="prov-badge prov-pret">🤝 Prêt</span>
+                    {% endif %}
+                </td>
+                <td style="font-size:.78rem; color:var(--gray);">{{ mat.fournisseur or '—' }}</td>
+                <td style="font-size:.75rem; color:var(--gray); font-style:italic;">{{ em.notes or '' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+
+        <!-- FACTURE LIÉE -->
+        {% if facture_liee %}
+        <div class="section-header facture">
+            <div class="section-icon"><i class="bi bi-receipt"></i></div>
+            <div>
+                <div class="section-label">Facture liée</div>
+                <div class="section-sub">Document financier associé</div>
+            </div>
+        </div>
+        <div class="fac-row" style="margin-bottom:24px;">
+            <div class="fac-head">
+                <span>N° Facture</span><span>Client</span><span>Montant TTC</span><span>État</span>
+            </div>
+            <div class="fac-data">
+                <div class="fac-num">{{ facture_liee.numero }}</div>
+                <div class="fac-cli">{{ facture_liee.nom_client }}</div>
+                <div class="fac-mtt">{{ "{:,.0f}".format(facture_liee.montant_ttc).replace(',', ' ') }} FCFA</div>
+                <div>
+                    {% if facture_liee.etat_paiement == 'Payer' %}
+                        <span class="badge-paye"><i class="bi bi-check-circle-fill"></i> PAYÉE</span>
+                    {% elif facture_liee.etat_paiement == 'Partiel' %}
+                        <span class="badge-partiel"><i class="bi bi-exclamation-circle-fill"></i> PARTIELLE</span>
+                    {% else %}
+                        <span class="badge-impaye"><i class="bi bi-x-circle-fill"></i> IMPAYÉE</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- MENTION CONTACT -->
+        <div class="mention-bloc">
+            <div class="mention-icon"><i class="bi bi-headset"></i></div>
+            <div>
+                <div class="mention-title">Contact & Coordination</div>
+                <div class="mention-text">
+                    Pour toute question relative à cette prestation, contactez-nous :
+                    {% if params and params.telephone %}{{ params.telephone }}{% endif %}
+                    {% if params and params.email %} · {{ params.email }}{% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- PIED -->
+        <div class="fiche-footer">
+            <div class="footer-left">
+                {{ params.mentions_legales if params else 'Document confidentiel — KS Production' }}<br>
+                <em>Merci pour votre confiance — {{ params.nom_entreprise if params else 'KS Production' }}</em>
+            </div>
+            <div class="sig-wrap">
+                <div {% if params and params.cachet_filename %}style="border:none; background:none; display:flex; align-items:center; justify-content:center; width:160px; height:100px;"{% else %}class="sig-box"{% endif %}>{% if params and params.cachet_filename %}
+                        <img src="/static/uploads/{{ params.cachet_filename }}" alt="Cachet"
+                             style="max-height:150px; max-width:150px; object-fit:contain; display:block;">
+                    {% else %}
+                        Cachet &amp; Signature
+                    {% endif %}</div>
+                <div class="sig-label">Autorisé par {{ params.nom_entreprise if params else 'KS Production' }}</div>
+            </div>
+        </div>
+
+    </div><!-- /fiche-inner -->
+</div><!-- /fiche -->
+</div><!-- /page-wrap -->
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+    var EVT_ID     = {{ evt.id }};
+    var EVT_REF    = "EVT-{{ '%04d' % evt.id }}";
+    var EVT_TITRE  = {{ evt.titre | tojson }};
+    var EVT_DATE   = {{ evt.date.strftime('%d/%m/%Y') | tojson }};
+    var EVT_CLIENT = {{ (evt.nom_client or '') | tojson }};
+    var EVT_LIEU   = {{ (evt.lieu or '') | tojson }};
+    var EVT_SERVICE= {{ (evt.service or '') | tojson }};
+    var NOM_ENT    = {{ (params.nom_entreprise if params else 'KS Production') | tojson }};
+    var TEL_ENT    = {{ (params.telephone if params else '') | tojson }};
+    var CLIENT_TEL = {{ (client.telephone if client and client.telephone else '') | tojson }};
+    {% if facture_liee %}
+    var FAC_NUM  = {{ facture_liee.numero | tojson }};
+    var FAC_MNT  = "{{ '{:,.0f}'.format(facture_liee.montant_ttc).replace(',', ' ') }} FCFA";
+    var FAC_ETAT = {{ ('PAYÉE' if facture_liee.etat_paiement=='Payer' else 'PARTIELLE' if facture_liee.etat_paiement=='Partiel' else 'IMPAYÉE') | tojson }};
+    {% else %}
+    var FAC_NUM = null, FAC_MNT = null, FAC_ETAT = null;
+    {% endif %}
+
+    /* ── Retour / ferme la fenêtre native ── */
+    function fermerFenetre() {
+        fetch('/api/close-window').catch(function(){});
+        setTimeout(function(){ window.close(); }, 200);
+    }
+
+    /* ── Enregistrer PDF (Weasyprint via main.py) ── */
+    function enregistrerPDF() {
+        var btn = document.getElementById('btnSave');
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> En cours...';
+        btn.disabled = true;
+        fetch('/api/enregistrer-pdf?type=prestation&id=' + EVT_ID)
+            .then(function(r){ return r.json(); })
+            .then(function(d){ btn.innerHTML = orig; btn.disabled = false; if (d.error) alert('Erreur : ' + d.error); })
+            .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+    }
+
+    /* ── Message partagé ── */
+    function buildMsg() {
+        var m = '🎵 *' + NOM_ENT + '* — Fiche de Prestation\n\n';
+        m += '📋 *' + EVT_TITRE + '*\n';
+        m += '📅 Date : ' + EVT_DATE + '\n';
+        if (EVT_CLIENT)  m += '👤 Client : '  + EVT_CLIENT  + '\n';
+        if (EVT_LIEU)    m += '📍 Lieu : '    + EVT_LIEU    + '\n';
+        if (EVT_SERVICE) m += '🔧 Service : ' + EVT_SERVICE + '\n';
+        if (FAC_NUM)     m += '\n🧾 Facture ' + FAC_NUM + ' — ' + FAC_MNT + ' (' + FAC_ETAT + ')\n';
+        m += '\nCordialement,\n' + NOM_ENT;
+        if (TEL_ENT) m += '\n📞 ' + TEL_ENT;
+        return m;
+    }
+
+    /* ── WhatsApp / E-mail ── */
+    function partager(canal) {
+        var btnId = canal === 'whatsapp' ? 'btnWA' : 'btnMail';
+        var btn   = document.getElementById(btnId);
+        var orig  = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ...';
+        btn.disabled  = true;
+
+        fetch('/api/partager?type=prestation&id=' + EVT_ID
+            + '&canal=' + canal + '&tel=' + encodeURIComponent(CLIENT_TEL))
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                btn.innerHTML = orig; btn.disabled = false;
+                if (d.chemin)
+                    alert('✅ PDF prêt :\n' + d.chemin + '\n\nAttachez-le dans '
+                        + (canal === 'whatsapp' ? 'WhatsApp' : 'votre messagerie') + '.');
+                else if (d.error) alert('❌ Erreur : ' + d.error);
+            })
+            .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lettre de relance — {{ facture.numero }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root {
+            --accent: {{ params.couleur_principale if params else '#e94560' }};
+            --dark:   #1a1a2e;
+            --gray:   #6b7280;
+            --border: #e5e7eb;
+            --light:  #f9fafb;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #eef0f4; font-family: 'Segoe UI', Arial, sans-serif; color: #374151; }
+
+        /* ── TOOLBAR ── */
+        .toolbar {
+            background: #0f0f1e; padding: 10px 24px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid var(--accent);
+            position: sticky; top: 0; z-index: 100;
+        }
+        .toolbar .brand { color: #fff; font-weight: 700; font-size: .92rem; }
+        .toolbar .brand em { color: var(--accent); font-style: normal; }
+        .toolbar .brand small { display: block; font-size: .68rem; color: rgba(255,255,255,.35); font-weight: 400; }
+        .tb-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+        .btn-tb {
+            border: none; padding: 7px 15px; border-radius: 8px; font-size: .8rem;
+            cursor: pointer; display: flex; align-items: center; gap: 6px;
+            font-weight: 600; text-decoration: none; transition: opacity .15s;
+        }
+        .btn-tb:hover    { opacity: .85; }
+        .btn-tb:disabled { opacity: .5; cursor: not-allowed; }
+        .btn-back  { background: rgba(255,255,255,.12); color: #fff; }
+        .btn-print { background: #6b7280; color: #fff; }
+        .btn-save  { background: var(--accent); color: #fff; }
+        .btn-wa    { background: #25d366; color: #fff; }
+        .btn-mail  { background: #0984e3; color: #fff; }
+
+        /* ── PAGE ── */
+        .page-wrap { max-width: 820px; margin: 28px auto 60px; padding: 0 16px; }
+        .lettre { background: #fff; border-radius: 4px; box-shadow: 0 2px 20px rgba(0,0,0,.09); overflow: hidden; }
+        .top-band { height: 6px; background: linear-gradient(90deg, var(--accent) 0%, #6c5ce7 50%, var(--accent) 100%); }
+        .lettre-inner { padding: 38px 48px 42px; }
+
+        /* ── EN-TÊTE ── */
+        .entete { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .logo-zone { display: flex; flex-direction: column; align-items: flex-start; }
+        .logo-zone img { height: 68px; width: auto; object-fit: contain; margin-bottom: 8px; }
+        .logo-placeholder { width: 60px; height: 60px; border-radius: 14px; background: linear-gradient(135deg, var(--accent), #6c5ce7); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.5rem; margin-bottom: 8px; }
+        .company-name { font-size: 1.2rem; font-weight: 800; color: var(--dark); }
+        .company-tag  { font-size: .72rem; color: var(--gray); margin-top: 2px; }
+        .company-contacts { margin-top: 8px; font-size: .72rem; color: #555; }
+        .company-contacts div { display: flex; align-items: center; gap: 5px; margin-bottom: 3px; }
+        .company-contacts i { color: var(--accent); font-size: .74rem; }
+
+        .titre-zone { text-align: right; }
+        .doc-label { font-size: .64rem; text-transform: uppercase; letter-spacing: .14em; color: var(--gray); font-weight: 700; }
+        .doc-title { font-size: 1.6rem; font-weight: 900; color: var(--dark); letter-spacing: -.02em; line-height: 1.1; margin-top: 2px; }
+        .doc-ref   { font-size: .82rem; color: var(--accent); font-weight: 700; margin-top: 4px; }
+
+        /* Badge retard */
+        .badge-retard { display: inline-flex; align-items: center; gap: 5px; padding: 5px 14px; border-radius: 20px; font-size: .78rem; font-weight: 700; margin-top: 10px; }
+        .retard-urgent  { background: #fee2e2; color: #991b1b; }
+        .retard-warning { background: #fef3c7; color: #92400e; }
+        .retard-info    { background: #fef9c3; color: #854d0e; }
+
+        .sep { height: 3px; border-radius: 2px; margin: 0 0 24px; background: linear-gradient(90deg, var(--accent), #6c5ce7, transparent); }
+
+        /* ── MÉTA ── */
+        .meta-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
+        .meta-date { font-size: .88rem; color: var(--gray); }
+        .meta-ref  { font-size: .82rem; font-weight: 700; color: var(--dark); background: var(--light); border: 1px solid var(--border); border-radius: 8px; padding: 5px 14px; }
+
+        /* ── DESTINATAIRE ── */
+        .dest-box { background: var(--light); border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; padding: 14px 18px; margin-bottom: 22px; display: inline-block; min-width: 260px; }
+        .dest-label { font-size: .63rem; text-transform: uppercase; letter-spacing: .1em; color: var(--accent); font-weight: 700; margin-bottom: 5px; }
+        .dest-nom { font-size: 1rem; font-weight: 800; color: var(--dark); }
+        .dest-info { font-size: .76rem; color: var(--gray); margin-top: 3px; display: flex; align-items: center; gap: 5px; }
+
+        /* ── OBJET ── */
+        .objet-box { background: #fff5f7; border: 1.5px solid var(--accent); border-radius: 10px; padding: 12px 18px; margin-bottom: 22px; font-size: .9rem; font-weight: 700; color: var(--dark); }
+        .objet-box .num { color: var(--accent); }
+
+        /* ── SECTION HEADER ── */
+        .section-header { display: flex; align-items: center; gap: 12px; padding: 11px 18px; border-radius: 10px; margin-bottom: 12px; }
+        .section-header.creance { background: linear-gradient(135deg, var(--accent), #c0392b); }
+        .section-header.contact { background: linear-gradient(135deg, var(--dark), #2d3756); }
+        .section-icon  { width: 36px; height: 36px; border-radius: 9px; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; color: #fff; font-size: .95rem; flex-shrink: 0; }
+        .section-label { font-size: .9rem; font-weight: 700; color: #fff; }
+        .section-sub   { font-size: .7rem; color: rgba(255,255,255,.7); margin-top: 1px; }
+
+        /* ── ALERTE MONTANT ── */
+        .alerte-montant { border: 2px solid var(--accent); border-radius: 12px; padding: 16px 22px; display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+        .alerte-montant.urgent  { background: linear-gradient(135deg, #fee2e2, #fecaca); }
+        .alerte-montant.warning { background: linear-gradient(135deg, #fff5f7, #ffe4e6); }
+        .alerte-icon  { width: 48px; height: 48px; border-radius: 12px; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 1.3rem; flex-shrink: 0; }
+        .alerte-titre { font-size: .88rem; font-weight: 700; color: var(--dark); }
+        .alerte-mtt   { font-size: 1.4rem; font-weight: 900; color: var(--accent); line-height: 1.1; }
+        .alerte-sub   { font-size: .74rem; color: var(--gray); margin-top: 2px; }
+
+        /* ── TABLE CRÉANCE ── */
+        .creance-table { width: 100%; border-collapse: collapse; margin-bottom: 22px; border-radius: 10px; overflow: hidden; }
+        .creance-table thead tr { background: var(--dark); }
+        .creance-table thead th { padding: 10px 14px; font-size: .7rem; text-transform: uppercase; letter-spacing: .07em; color: #fff; text-align: left; font-weight: 600; }
+        .creance-table tbody td { padding: 13px 14px; font-size: .88rem; border-bottom: 1px solid var(--border); }
+        .creance-table tbody tr { background: #fff; }
+        .td-num   { font-weight: 700; color: var(--accent); }
+        .td-mtt   { font-weight: 700; color: var(--dark); }
+        .td-paye  { font-weight: 700; color: #00b894; }
+        .td-reste { font-weight: 800; color: var(--accent); font-size: 1rem; }
+
+        /* ── CORPS ── */
+        .corps p { font-size: .9rem; color: var(--dark); line-height: 1.7; margin-bottom: 14px; }
+        .corps p strong { color: var(--dark); }
+        .accent { color: var(--accent); font-weight: 700; }
+
+        /* ── CONTACT GRID ── */
+        .contact-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 24px; }
+        .contact-cell { background: var(--light); border: 1px solid var(--border); border-radius: 9px; padding: 11px 14px; }
+        .cc-label { font-size: .62rem; text-transform: uppercase; letter-spacing: .1em; color: var(--gray); font-weight: 700; margin-bottom: 4px; }
+        .cc-value { font-size: .85rem; font-weight: 700; color: var(--dark); }
+
+        /* ── SIGNATURE ── */
+        .signature-zone { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 24px; }
+        .sig-text  { font-size: .88rem; color: var(--dark); line-height: 1.7; max-width: 360px; font-style: italic; }
+        .sig-wrap  { text-align: center; }
+        .sig-name  { font-size: .88rem; font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+        .sig-box   { width: 150px; height: 60px; border: 1.5px dashed #d1d5db; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #d1d5db; }
+        .sig-label { font-size: .66rem; color: #9ca3af; margin-top: 4px; }
+
+        /* ── PIED ── */
+        .lettre-footer { border-top: 1px solid var(--border); padding-top: 14px; margin-top: 28px; text-align: center; }
+        .footer-text { font-size: .7rem; color: #9ca3af; line-height: 1.6; }
+
+        /* ── PRINT ── */
+        @media print {
+            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            body { background: #fff !important; }
+            .toolbar { display: none !important; }
+            .page-wrap { margin: 0; padding: 0; max-width: 100%; }
+            .lettre { box-shadow: none !important; border-radius: 0 !important; }
+            .lettre-inner { padding: 22px 36px; }
+            .section-header.creance { background: linear-gradient(135deg, var(--accent), #c0392b) !important; }
+            .section-header.contact { background: linear-gradient(135deg, #1a1a2e, #2d3756) !important; }
+            @page { margin: 8mm; size: A4; }
+        }
+
+        /* ── MOBILE ── */
+        @media (max-width: 600px) {
+            .toolbar { flex-direction: column; gap: 10px; align-items: flex-start; padding: 10px 16px; }
+            .tb-btns { width: 100%; }
+            .btn-tb { font-size: .75rem; padding: 5px 10px; }
+            .lettre-inner { padding: 20px 18px; }
+            .entete { flex-direction: column; gap: 14px; }
+            .titre-zone { text-align: left; }
+            .contact-grid { grid-template-columns: 1fr; }
+            .signature-zone { flex-direction: column; gap: 16px; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ══ TOOLBAR ═══════════════════════════════════════════════════ -->
+<div class="toolbar d-print-none">
+    <div class="brand">
+        🎵 {{ params.nom_entreprise if params else 'KS Production' }} — <em>Lettre de Relance</em>
+        <small>{{ facture.numero }} · {{ facture.nom_client }}</small>
+    </div>
+    <div class="tb-btns">
+        <button class="btn-tb btn-back"  onclick="fermerFenetre()"><i class="bi bi-arrow-left"></i> Retour</button>
+        <button class="btn-tb btn-print" onclick="window.print()"><i class="bi bi-printer"></i> Imprimer</button>
+        <button class="btn-tb btn-save"  id="btnSave" onclick="enregistrerPDF()"><i class="bi bi-file-earmark-pdf"></i> Enregistrer PDF</button>
+        <button class="btn-tb btn-wa"    id="btnWA"   onclick="partager('whatsapp')"><i class="bi bi-whatsapp"></i> WhatsApp</button>
+        <button class="btn-tb btn-mail"  id="btnMail" onclick="partager('email')"><i class="bi bi-envelope"></i> E-mail</button>
+    </div>
+</div>
+
+<!-- ══ PAGE ══════════════════════════════════════════════════════ -->
+<div class="page-wrap" id="zonePDF">
+<div class="lettre">
+    <div class="top-band"></div>
+    <div class="lettre-inner">
+
+        <!-- EN-TÊTE -->
+        <div class="entete">
+            <div class="logo-zone">
+                {% if params and params.logo_filename %}
+                    <img src="/static/uploads/{{ params.logo_filename }}" alt="Logo">
+                {% else %}
+                    <div class="logo-placeholder">🎵</div>
+                {% endif %}
+                <div class="company-name">{{ params.nom_entreprise if params else 'KS Production' }}</div>
+                <div class="company-tag">{{ params.slogan if params else "Studio d'Enregistrement & Sonorisation" }}</div>
+                {% if params %}
+                <div class="company-contacts">
+                    {% if params.telephone %}<div><i class="bi bi-telephone-fill"></i> {{ params.telephone }}</div>{% endif %}
+                    {% if params.email %}<div><i class="bi bi-envelope-fill"></i> {{ params.email }}</div>{% endif %}
+                    {% if params.adresse %}<div><i class="bi bi-geo-alt-fill"></i> {{ params.adresse }}</div>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="titre-zone">
+                <div class="doc-label">Document officiel</div>
+                <div class="doc-title">LETTRE DE<br>RELANCE</div>
+                <div class="doc-ref">Réf. RELANCE-{{ facture.numero }}</div>
+                {% if jours_retard > 30 %}
+                    <span class="badge-retard retard-urgent"><i class="bi bi-exclamation-triangle-fill"></i> Urgent — {{ jours_retard }}j</span>
+                {% elif jours_retard > 7 %}
+                    <span class="badge-retard retard-warning"><i class="bi bi-clock-fill"></i> {{ jours_retard }} jours de retard</span>
+                {% elif jours_retard > 0 %}
+                    <span class="badge-retard retard-info"><i class="bi bi-bell-fill"></i> {{ jours_retard }} jour(s) de retard</span>
+                {% else %}
+                    <span class="badge-retard retard-info"><i class="bi bi-bell"></i> 1ère relance</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="sep"></div>
+
+        <!-- MÉTA -->
+        <div class="meta-row">
+            <span class="meta-date"><i class="bi bi-calendar3 me-1"></i>Lomé, le {{ today.strftime('%d/%m/%Y') }}</span>
+            <span class="meta-ref"><i class="bi bi-hash me-1"></i>RELANCE-{{ facture.numero }}</span>
+        </div>
+
+        <!-- DESTINATAIRE -->
+        <div class="dest-box">
+            <div class="dest-label">À l'attention de</div>
+            <div class="dest-nom">{{ facture.nom_client }}</div>
+            {% if client %}
+                {% if client.telephone %}<div class="dest-info"><i class="bi bi-telephone"></i> {{ client.telephone }}</div>{% endif %}
+                {% if client.email    %}<div class="dest-info"><i class="bi bi-envelope"></i> {{ client.email }}</div>{% endif %}
+                {% if client.adresse  %}<div class="dest-info"><i class="bi bi-geo-alt"></i> {{ client.adresse }}</div>{% endif %}
+            {% endif %}
+        </div>
+
+        <!-- OBJET -->
+        <div class="objet-box">
+            <i class="bi bi-tag-fill me-2" style="color:var(--accent);"></i>
+            Objet : Relance pour facture impayée — <span class="num">{{ facture.numero }}</span>
+        </div>
+
+        <!-- INTRO -->
+        <div class="corps">
+            <p>Madame, Monsieur,</p>
+            <p>
+                Sauf erreur de notre part, nous constatons que la facture
+                n° <strong>{{ facture.numero }}</strong>,
+                d'un montant de <strong>{{ "{:,.0f}".format(facture.montant_ttc).replace(',', ' ') }} FCFA</strong>,
+                émise le <strong>{{ facture.date.strftime('%d/%m/%Y') }}</strong>,
+                reste à ce jour
+                <span class="accent">impayée{% if jours_retard > 0 %} depuis {{ jours_retard }} jour(s){% endif %}</span>.
+            </p>
+        </div>
+
+        <!-- ALERTE MONTANT -->
+        <div class="alerte-montant {{ 'urgent' if jours_retard > 30 else 'warning' }}">
+            <div class="alerte-icon"><i class="bi bi-exclamation-circle-fill"></i></div>
+            <div>
+                <div class="alerte-titre">Montant restant dû</div>
+                <div class="alerte-mtt">{{ "{:,.0f}".format(facture.reste_du).replace(',', ' ') }} FCFA</div>
+                {% if facture.montant_paye > 0 %}
+                <div class="alerte-sub">
+                    <i class="bi bi-check-circle-fill me-1" style="color:#00b894;"></i>
+                    Déjà réglé : {{ "{:,.0f}".format(facture.montant_paye).replace(',', ' ') }} FCFA sur {{ "{:,.0f}".format(facture.montant_ttc).replace(',', ' ') }} FCFA
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- SECTION CRÉANCE -->
+        <div class="section-header creance">
+            <div class="section-icon"><i class="bi bi-receipt-cutoff"></i></div>
+            <div>
+                <div class="section-label">Détail de la créance</div>
+                <div class="section-sub">Récapitulatif de la facture concernée</div>
+            </div>
+        </div>
+        <table class="creance-table">
+            <thead>
+                <tr>
+                    <th>N° Facture</th>
+                    <th>Date d'émission</th>
+                    <th>Montant TTC</th>
+                    <th>Déjà payé</th>
+                    <th>Reste dû</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="td-num">{{ facture.numero }}</td>
+                    <td>{{ facture.date.strftime('%d/%m/%Y') }}</td>
+                    <td class="td-mtt">{{ "{:,.0f}".format(facture.montant_ttc).replace(',', ' ') }} FCFA</td>
+                    <td class="td-paye">
+                        {% if facture.montant_paye > 0 %}{{ "{:,.0f}".format(facture.montant_paye).replace(',', ' ') }} FCFA
+                        {% else %}<span style="color:var(--gray);">—</span>{% endif %}
+                    </td>
+                    <td class="td-reste">{{ "{:,.0f}".format(facture.reste_du).replace(',', ' ') }} FCFA</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- CORPS SUITE -->
+        <div class="corps">
+            <p>Nous vous remercions de bien vouloir procéder au règlement de la somme de <strong>{{ "{:,.0f}".format(facture.reste_du).replace(',', ' ') }} FCFA</strong> dans les meilleurs délais.</p>
+            <p>Dans le cas où ce règlement aurait déjà été effectué, veuillez considérer cette lettre comme sans effet et nous en excuser.</p>
+        </div>
+
+        <!-- SECTION CONTACT -->
+        <div class="section-header contact">
+            <div class="section-icon"><i class="bi bi-headset"></i></div>
+            <div>
+                <div class="section-label">Pour tout règlement ou question</div>
+                <div class="section-sub">Nos coordonnées</div>
+            </div>
+        </div>
+        <div class="contact-grid">
+            {% if params and params.telephone %}
+            <div class="contact-cell">
+                <div class="cc-label"><i class="bi bi-telephone-fill me-1"></i>Téléphone</div>
+                <div class="cc-value">{{ params.telephone }}</div>
+            </div>
+            {% endif %}
+            {% if params and params.email %}
+            <div class="contact-cell">
+                <div class="cc-label"><i class="bi bi-envelope-fill me-1"></i>E-mail</div>
+                <div class="cc-value">{{ params.email }}</div>
+            </div>
+            {% endif %}
+            {% if params and params.adresse %}
+            <div class="contact-cell">
+                <div class="cc-label"><i class="bi bi-geo-alt-fill me-1"></i>Adresse</div>
+                <div class="cc-value">{{ params.adresse }}</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- SIGNATURE -->
+        <div class="signature-zone">
+            <div class="sig-text">
+                Dans l'attente de votre règlement, nous vous adressons nos cordiales salutations.
+            </div>
+            <div class="sig-wrap">
+                <div class="sig-name">{{ params.nom_entreprise if params else 'KS Production' }}</div>
+                <div {% if params and params.cachet_filename %}style="border:none; background:none; display:flex; align-items:center; justify-content:center; width:160px; height:100px;"{% else %}class="sig-box"{% endif %}>{% if params and params.cachet_filename %}
+                        <img src="/static/uploads/{{ params.cachet_filename }}" alt="Cachet"
+                             style="max-height:150px; max-width:150px; object-fit:contain; display:block;">
+                    {% else %}
+                        Cachet &amp; Signature
+                    {% endif %}</div>
+                <div class="sig-label">Autorisé par {{ params.nom_entreprise if params else 'KS Production' }}</div>
+            </div>
+        </div>
+
+        <!-- PIED -->
+        <div class="lettre-footer">
+            <div class="footer-text">
+                {{ params.mentions_legales if params else 'Paiement à réception de facture.' }}
+                — Document généré le {{ today.strftime('%d/%m/%Y') }}
+                — {{ params.nom_entreprise if params else 'KS Production' }}
+            </div>
+        </div>
+
+    </div>
+</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+    var FAC_ID     = {{ facture.id }};
+    var CLIENT_TEL = {{ (client.telephone if client and client.telephone else '') | tojson }};
+
+    function fermerFenetre() {
+        fetch('/api/close-window').catch(function(){});
+        setTimeout(function(){ window.close(); }, 200);
+    }
+
+    function enregistrerPDF() {
+        var btn = document.getElementById('btnSave');
+        var orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> En cours...';
+        btn.disabled = true;
+        fetch('/api/enregistrer-pdf?type=relance&id=' + FAC_ID)
+            .then(function(r){ return r.json(); })
+            .then(function(d){ btn.innerHTML = orig; btn.disabled = false; if (d.error) alert('Erreur : ' + d.error); })
+            .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+    }
+
+    function partager(canal) {
+        var btnId = canal === 'whatsapp' ? 'btnWA' : 'btnMail';
+        var btn   = document.getElementById(btnId);
+        var orig  = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ...';
+        btn.disabled  = true;
+        fetch('/api/partager?type=relance&id=' + FAC_ID + '&canal=' + canal + '&tel=' + encodeURIComponent(CLIENT_TEL))
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                btn.innerHTML = orig; btn.disabled = false;
+                if (d.chemin) alert('✅ PDF prêt :\n' + d.chemin);
+                else if (d.error) alert('❌ Erreur : ' + d.error);
+            })
+            .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+    }
+</script>
+</body>
+</html>

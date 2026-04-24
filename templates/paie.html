@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Paie & Primes — KS Production</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root { --ks-primary:#1a1a2e; --ks-accent:#e94560; --ks-green:#00b894; --ks-orange:#f59e0b; --ks-blue:#0984e3; --ks-violet:#6c5ce7; }
+        body  { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .sidebar { width:200px; min-height:100vh; background:var(--ks-primary); position:fixed; left:0; top:0; z-index:100; display:flex; flex-direction:column; }
+        .brand { color:#fff; font-size:.95rem; font-weight:700; padding:14px 16px 12px; border-bottom:1px solid rgba(255,255,255,.1); }
+        .brand span { color:var(--ks-accent); }
+        .brand small { display:block; font-size:.58rem; color:rgba(255,255,255,.3); font-weight:400; }
+        .sidebar nav { flex:1; padding:8px 0; }
+        .nav-section { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.28); padding:10px 16px 3px; font-weight:600; }
+        .nav-link { color:#aab4c4; padding:8px 16px; display:flex; align-items:center; gap:8px; font-size:.8rem; transition:all .2s; }
+        .nav-link:hover,.nav-link.active { color:#fff; background:var(--ks-accent); border-radius:8px; margin:0 6px; padding:8px 10px; }
+        .nav-link i { font-size:.88rem; width:16px; }
+        .sidebar-footer { padding:8px 6px 14px; border-top:1px solid rgba(255,255,255,.1); }
+        .main-content { margin-left:200px; padding:20px; }
+        .topbar { background:#fff; border-radius:12px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+        .topbar h5 { margin:0; font-weight:700; color:var(--ks-primary); font-size:.95rem; }
+
+        /* Stats */
+        .stat-card { background:#fff; border-radius:12px; padding:16px 20px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; align-items:center; gap:14px; }
+        .stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+        .stat-val { font-size:1.4rem; font-weight:800; color:var(--ks-primary); }
+        .stat-lbl { font-size:.68rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; }
+
+        /* Tabs */
+        .tabs-bar { background:#fff; border-radius:12px; padding:6px; margin-bottom:18px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; gap:4px; }
+        .tab-btn { flex:1; padding:10px 16px; border:none; border-radius:8px; background:transparent; font-size:.82rem; font-weight:600; color:#6b7280; cursor:pointer; transition:all .2s; display:flex; align-items:center; justify-content:center; gap:6px; }
+        .tab-btn:hover { background:#f0f2f5; color:var(--ks-primary); }
+        .tab-btn.active { background:var(--ks-accent); color:#fff; }
+        .tab-content { display:none; }
+        .tab-content.active { display:block; }
+
+        /* Cards */
+        .card-ks { background:#fff; border-radius:14px; padding:20px; box-shadow:0 1px 6px rgba(0,0,0,.06); margin-bottom:16px; }
+        .card-title-ks { font-size:.75rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--ks-accent); margin-bottom:16px; padding-bottom:10px; border-bottom:2px solid #fdecea; display:flex; align-items:center; gap:8px; }
+
+        /* Table attentes */
+        .table-att { width:100%; border-collapse:collapse; font-size:.84rem; }
+        .table-att thead tr { background:var(--ks-primary); }
+        .table-att thead th { padding:10px 13px; font-size:.7rem; text-transform:uppercase; letter-spacing:.07em; color:#fff; font-weight:600; text-align:left; }
+        .table-att tbody tr { border-bottom:1px solid #f0f0f0; transition:background .1s; }
+        .table-att tbody tr:hover { background:#fafafa; }
+        .table-att tbody td { padding:11px 13px; vertical-align:middle; }
+        .badge-att { background:#fef3c7; color:#92400e; font-size:.72rem; font-weight:700; padding:3px 10px; border-radius:10px; }
+        .badge-paye { background:#d1fae5; color:#065f46; font-size:.72rem; font-weight:700; padding:3px 10px; border-radius:10px; }
+        .type-badge { font-size:.7rem; padding:2px 8px; border-radius:8px; font-weight:600; }
+        .t-prime  { background:#f5f3ff; color:#6c5ce7; }
+        .t-musiq  { background:#eff6ff; color:#0984e3; }
+        .t-conso  { background:#f0fdf4; color:#065f46; }
+        .t-autre  { background:#f3f4f6; color:#374151; }
+
+        /* Reçus */
+        .recu-card { background:#fff; border-radius:12px; padding:16px 18px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; border-left:4px solid var(--ks-accent); transition:transform .15s; }
+        .recu-card:hover { transform:translateX(3px); }
+        .recu-num   { font-size:.85rem; font-weight:700; color:var(--ks-accent); }
+        .recu-ben   { font-size:.9rem; font-weight:700; color:var(--ks-primary); }
+        .recu-type  { font-size:.72rem; color:#6b7280; }
+        .recu-mtt   { font-size:1.1rem; font-weight:800; color:var(--ks-primary); }
+        .recu-date  { font-size:.72rem; color:#9ca3af; }
+
+        /* Formulaires */
+        .form-label { font-weight:600; color:#444; font-size:.86rem; }
+        .form-control,.form-select { border-radius:8px; border:1.5px solid #e0e0e0; font-size:.86rem; }
+        .form-control:focus,.form-select:focus { border-color:var(--ks-accent); box-shadow:0 0 0 3px #e9456022; }
+        .btn-ks { background:var(--ks-accent); border:none; color:#fff; border-radius:8px; }
+        .btn-ks:hover { background:#c0392b; color:#fff; }
+        .btn-violet { background:var(--ks-violet); border:none; color:#fff; border-radius:8px; }
+        .btn-violet:hover { background:#5a4bd1; color:#fff; }
+
+        /* Checkbox prime */
+        .prime-check-item { background:#f9fafb; border:1.5px solid #e5e7eb; border-radius:8px; padding:10px 13px; margin-bottom:8px; cursor:pointer; transition:all .15s; }
+        .prime-check-item.selected { background:#f5f3ff; border-color:#6c5ce7; }
+        .pci-nom { font-size:.85rem; font-weight:700; color:var(--ks-primary); }
+        .pci-evt { font-size:.73rem; color:#6b7280; }
+        .pci-mtt { font-size:.9rem; font-weight:800; color:var(--ks-accent); }
+
+        /* Modal */
+        .modal-header { background:var(--ks-primary); color:#fff; }
+
+        /* Hamburger */
+        .hamburger-btn { display:none; position:fixed; top:12px; left:12px; z-index:200; background:var(--ks-accent); color:#fff; border:none; border-radius:10px; width:40px; height:40px; font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; }
+        .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; }
+        .sidebar-overlay.active { display:block; }
+        @media(max-width:768px) {
+            .hamburger-btn { display:flex; }
+            .sidebar { transform:translateX(-100%); transition:transform .3s; z-index:160; width:240px !important; }
+            .sidebar.open { transform:translateX(0); }
+            .main-content { margin-left:0 !important; padding:12px !important; padding-top:60px !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <div class="brand">🎵 KS <span>Production</span><small>Paie & Primes</small></div>
+    <nav>
+        <div class="nav-section">Menu</div>
+        <a href="/dashboard"  class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="/factures"   class="nav-link"><i class="bi bi-receipt"></i> Factures</a>
+        <a href="/proformas"  class="nav-link"><i class="bi bi-file-earmark-text"></i> Proformas</a>
+        <a href="/agenda"     class="nav-link"><i class="bi bi-calendar3"></i> Agenda</a>
+        <a href="/operations" class="nav-link"><i class="bi bi-arrow-left-right"></i> Opérations</a>
+        <a href="/clients"    class="nav-link"><i class="bi bi-people"></i> Clients</a>
+        <div class="nav-section">Production</div>
+        <a href="/techniciens"  class="nav-link"><i class="bi bi-person-badge"></i> Techniciens</a>
+        <a href="/materiels"    class="nav-link"><i class="bi bi-box-seam"></i> Matériels</a>
+        <a href="/fournisseurs" class="nav-link"><i class="bi bi-shop"></i> Fournisseurs</a>
+        <a href="/paie"         class="nav-link active"><i class="bi bi-cash-coin"></i> Paie & Primes</a>
+        <div class="nav-section">Finance</div>
+        <a href="/paiements"  class="nav-link"><i class="bi bi-clock-history"></i> Paiements</a>
+        <a href="/relances"   class="nav-link"><i class="bi bi-bell-fill"></i> Relances</a>
+        <a href="/rapport"    class="nav-link"><i class="bi bi-bar-chart-line"></i> Rapport</a>
+        {% if role == 'Administrateur' %}
+        <div class="nav-section">Admin</div>
+        <a href="/services"    class="nav-link"><i class="bi bi-grid"></i> Services</a>
+        <a href="/utilisateurs" class="nav-link"><i class="bi bi-person-gear"></i> Utilisateurs</a>
+        <a href="/parametres"  class="nav-link"><i class="bi bi-gear"></i> Paramètres</a>
+        <a href="/sauvegarde"  class="nav-link"><i class="bi bi-cloud-arrow-down"></i> Sauvegarde</a>
+        {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/profil"  class="nav-link"><i class="bi bi-person-circle"></i> Mon Profil</a>
+        <a href="/logout"  class="nav-link" style="color:#e74c3c;"><i class="bi bi-box-arrow-left"></i> Déconnexion</a>
+    </div>
+</div>
+
+<button class="hamburger-btn" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('active');"><i class="bi bi-list"></i></button>
+<div class="sidebar-overlay" id="overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('active');"></div>
+
+<!-- MAIN -->
+<div class="main-content">
+    <div class="topbar">
+        <div>
+            <h5><i class="bi bi-cash-coin me-2" style="color:var(--ks-accent);"></i>Paie & Primes</h5>
+            <small class="text-muted">Gestion des salaires, primes et rémunérations</small>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-violet" data-bs-toggle="modal" data-bs-target="#modalBulletin">
+                <i class="bi bi-file-earmark-person me-1"></i>Bulletin salarié
+            </button>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+        <div class="alert alert-{{ cat }} alert-dismissible fade show mb-3">
+            {{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- STATS -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#fef3c7;color:#92400e;"><i class="bi bi-hourglass-split"></i></div>
+                <div><div class="stat-val" style="color:#92400e;">{{ stats.nb_attente }}</div><div class="stat-lbl">En attente</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#fef3c7;color:#92400e;"><i class="bi bi-cash-stack"></i></div>
+                <div><div class="stat-val" style="color:#92400e; font-size:1rem;">{{ "{:,.0f}".format(stats.total_attente).replace(',', ' ') }}<small style="font-size:.6rem;">FCFA</small></div><div class="stat-lbl">Montant att.</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#d1fae5;color:#065f46;"><i class="bi bi-receipt"></i></div>
+                <div><div class="stat-val" style="color:#065f46;">{{ stats.nb_recus }}</div><div class="stat-lbl">Reçus émis</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#d1fae5;color:#065f46;"><i class="bi bi-coin"></i></div>
+                <div><div class="stat-val" style="color:#065f46; font-size:1rem;">{{ "{:,.0f}".format(stats.total_paye_mois).replace(',', ' ') }}<small style="font-size:.6rem;">FCFA</small></div><div class="stat-lbl">Total payé</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ONGLETS -->
+    <div class="tabs-bar">
+        <button class="tab-btn active" id="tabBtnDepenses" onclick="showTab('depenses', this)">
+            <i class="bi bi-list-ul"></i> Toutes les dépenses
+        </button>
+        <button class="tab-btn" id="tabBtnBulletins" onclick="showTab('bulletins', this)">
+            <i class="bi bi-file-earmark-person"></i> Bulletins & Salaires
+            {% if recus %}<span style="background:#6c5ce7;color:#fff;border-radius:10px;padding:1px 7px;font-size:.68rem;margin-left:4px;">{{ recus|length }}</span>{% endif %}
+        </button>
+        <button class="tab-btn" id="tabBtnRecus" onclick="showTab('recus', this)">
+            <i class="bi bi-receipt"></i> Tous les reçus
+        </button>
+    </div>
+
+    <!-- ONGLET 1 : TOUTES LES DÉPENSES + FILTRES -->
+    <div class="tab-content active" id="tab-depenses">
+
+        <!-- Filtres -->
+        <form method="GET" action="/paie" id="formFiltres">
+        <div style="background:#fff;border-radius:12px;padding:12px 16px;margin-bottom:14px;box-shadow:0 1px 6px rgba(0,0,0,.06);display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+            <input type="text" name="q" class="form-control form-control-sm" style="max-width:200px;" placeholder="🔍 Rechercher..." value="{{ filtre_q }}">
+            <select name="statut" class="form-select form-select-sm" style="max-width:150px;">
+                <option value="">Tous statuts</option>
+                <option value="Payé" {% if filtre_statut=='Payé' %}selected{% endif %}>✅ Payé</option>
+                <option value="En attente" {% if filtre_statut=='En attente' %}selected{% endif %}>⏳ En attente</option>
+            </select>
+            <select name="type" class="form-select form-select-sm" style="max-width:200px;">
+                <option value="">Tous types</option>
+                {% for t in types_depense %}
+                <option value="{{ t }}" {% if filtre_type==t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-sm btn-ks"><i class="bi bi-funnel me-1"></i>Filtrer</button>
+            <a href="/paie" class="btn btn-sm btn-outline-secondary">Tout afficher</a>
+        </div>
+        </form>
+
+        {% if toutes_depenses %}
+        <div class="card-ks">
+            <div class="card-title-ks">
+                <i class="bi bi-cash-coin"></i> {{ toutes_depenses|length + recus|length }} dépense(s)
+                <span style="margin-left:auto; font-size:.78rem; font-weight:400; color:#6b7280;">
+                    Total affiché : {{ "{:,.0f}".format((toutes_depenses|sum(attribute='montant')) + (recus|sum(attribute='total_net'))).replace(',', ' ') }} FCFA
+                </span>
+            </div>
+            <table class="table-att">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Description</th>
+                        <th>Bénéficiaire</th>
+                        <th>Prestation</th>
+                        <th>Montant</th>
+                        <th>Statut</th>
+                        <th>Reçu</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for d in toutes_depenses %}
+                <tr>
+                    <td>
+                        {% if d.type_depense == 'Prime technicien' %}
+                            <span class="type-badge t-prime"><i class="bi bi-person-badge me-1"></i>Prime tech.</span>
+                        {% elif d.type_depense == 'Rémunération musicien' %}
+                            <span class="type-badge t-musiq"><i class="bi bi-music-note me-1"></i>Musicien</span>
+                        {% elif d.type_depense == 'Consommable' %}
+                            <span class="type-badge t-conso"><i class="bi bi-box me-1"></i>Consommable</span>
+                        {% else %}
+                            <span class="type-badge t-autre">{{ d.type_depense }}</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:600; color:#1a1a2e;">{{ d.description }}</td>
+                    <td style="color:#6b7280;">{{ d.beneficiaire or '—' }}</td>
+                    <td style="font-size:.78rem; color:var(--ks-accent);">
+                        {% if d._evt %}<i class="bi bi-calendar3 me-1"></i>{{ d._evt.titre[:28] }}{% else %}—{% endif %}
+                    </td>
+                    <td style="font-weight:800; color:#1a1a2e;">{{ "{:,.0f}".format(d.montant).replace(',', ' ') }} FCFA</td>
+                    <td>
+                        {% if d.statut == 'Payé' %}
+                            <span class="badge-paye">✅ Payé</span>
+                            {% if d.date_paiement %}<div style="font-size:.68rem;color:#9ca3af;">{{ d.date_paiement.strftime('%d/%m/%Y') }}</div>{% endif %}
+                        {% else %}
+                            <span class="badge-att">⏳ En attente</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d._recu %}
+                            <button onclick="ouvrirRecu('{{ d._recu.id }}')" style="font-size:.75rem;color:var(--ks-accent);font-weight:700;text-decoration:none;background:none;border:none;cursor:pointer;padding:0;">
+                                <i class="bi bi-receipt me-1"></i>{{ d._recu.numero }}
+                            </button>
+                        {% else %}
+                            <span style="color:#d1d5db;font-size:.75rem;">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.statut == 'En attente' %}
+                        <button class="btn btn-sm btn-ks" onclick="payerDepense({{ d.id }}, '{{ d.beneficiaire or d.description }}', {{ d.montant }})">
+                            <i class="bi bi-check-circle me-1"></i>Payer & Reçu
+                        </button>
+                        {% else %}
+                        <button onclick="ouvrirRecu('{{ d.recu_id }}')" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;">
+                            <i class="bi bi-eye me-1"></i>Voir reçu
+                        </button>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                <!-- ── Bulletins salaires dans la même table ── -->
+                {% for r in recus %}
+                <tr style="background:#fafafa;">
+                    <td>
+                        {% if r.type_recu == 'Bulletin Salaire' %}
+                            <span class="type-badge" style="background:#f5f3ff;color:#6c5ce7;">💼 Salaire</span>
+                        {% else %}
+                            <span class="type-badge" style="background:#fef3c7;color:#92400e;">⭐ Prime</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:600;color:#1a1a2e;">
+                        {{ r.type_recu }} — {{ r.mois or '' }}
+                    </td>
+                    <td style="color:#6b7280;">{{ r.beneficiaire }}</td>
+                    <td style="font-size:.78rem;color:#9ca3af;">—</td>
+                    <td style="font-weight:800;color:#1a1a2e;">{{ "{:,.0f}".format(r.total_net).replace(',', ' ') }} FCFA</td>
+                    <td>
+                        <span class="badge-paye">✅ Payé</span>
+                        <div style="font-size:.68rem;color:#9ca3af;">{{ r.date.strftime('%d/%m/%Y') }}</div>
+                    </td>
+                    <td>
+                        <span style="font-size:.75rem;color:#6c5ce7;font-weight:700;">
+                            <i class="bi bi-receipt me-1"></i>{{ r.numero }}
+                        </span>
+                    </td>
+                    <td>
+                        <button onclick="ouvrirRecu('{{ r.id }}')" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;">
+                            <i class="bi bi-eye me-1"></i>Voir reçu
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% elif recus %}
+        <!-- Pas de dépenses prestation mais des bulletins -->
+        <div class="card-ks">
+            <div class="card-title-ks"><i class="bi bi-cash-coin"></i> {{ recus|length }} bulletin(s) / reçu(s)</div>
+            <table class="table-att">
+                <thead>
+                    <tr><th>Type</th><th>Description</th><th>Bénéficiaire</th><th>Prestation</th><th>Montant</th><th>Statut</th><th>Reçu</th><th>Actions</th></tr>
+                </thead>
+                <tbody>
+                {% for r in recus %}
+                <tr>
+                    <td>
+                        {% if r.type_recu == 'Bulletin Salaire' %}
+                            <span class="type-badge" style="background:#f5f3ff;color:#6c5ce7;">💼 Salaire</span>
+                        {% else %}
+                            <span class="type-badge" style="background:#fef3c7;color:#92400e;">⭐ Prime</span>
+                        {% endif %}
+                    </td>
+                    <td style="font-weight:600;color:#1a1a2e;">{{ r.type_recu }} — {{ r.mois or '' }}</td>
+                    <td style="color:#6b7280;">{{ r.beneficiaire }}</td>
+                    <td style="color:#9ca3af;">—</td>
+                    <td style="font-weight:800;color:#1a1a2e;">{{ "{:,.0f}".format(r.total_net).replace(',', ' ') }} FCFA</td>
+                    <td><span class="badge-paye">✅ Payé</span></td>
+                    <td><span style="font-size:.75rem;color:#6c5ce7;font-weight:700;">{{ r.numero }}</span></td>
+                    <td>
+                        <button onclick="ouvrirRecu('{{ r.id }}')" class="btn btn-sm btn-outline-secondary" style="font-size:.75rem;">
+                            <i class="bi bi-eye me-1"></i>Voir reçu
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <div style="font-size:3rem; margin-bottom:12px;">💸</div>
+            <h6 style="color:#6b7280;">Aucune dépense enregistrée</h6>
+            <p style="font-size:.84rem; color:#9ca3af;">Les dépenses des prestations apparaîtront ici.</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ONGLET 2 : BULLETINS & SALAIRES -->
+    <div class="tab-content" id="tab-bulletins">
+        {% set bulletins = recus|selectattr('type_recu','equalto','Bulletin Salaire')|list %}
+        {% set recus_prest = recus|selectattr('type_recu','equalto','Reçu Prestation')|list %}
+        {% if recus %}
+        <!-- Résumé financier -->
+        <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:16px;">
+            <div style="background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 6px rgba(0,0,0,.06); text-align:center;">
+                <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:4px;">Bulletins salaire</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#6c5ce7;">{{ bulletins|length }}</div>
+            </div>
+            <div style="background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 6px rgba(0,0,0,.06); text-align:center;">
+                <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:4px;">Reçus prestations</div>
+                <div style="font-size:1.2rem; font-weight:800; color:#f59e0b;">{{ recus_prest|length }}</div>
+            </div>
+            <div style="background:#fff; border-radius:10px; padding:14px 16px; box-shadow:0 1px 6px rgba(0,0,0,.06); text-align:center;">
+                <div style="font-size:.65rem; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; margin-bottom:4px;">Total décaissé</div>
+                <div style="font-size:1rem; font-weight:800; color:#e94560;">{{ "{:,.0f}".format(recus|sum(attribute='total_net')).replace(',', ' ') }} FCFA</div>
+            </div>
+        </div>
+        {% for r in recus %}
+        <div style="background:#fff; border-radius:12px; padding:16px 18px; box-shadow:0 1px 6px rgba(0,0,0,.06); margin-bottom:10px; border-left:4px solid {{ '#6c5ce7' if r.type_recu=='Bulletin Salaire' else '#f59e0b' }};">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                <div style="flex:1;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                        <span style="font-size:.85rem; font-weight:700; color:#e94560;">{{ r.numero }}</span>
+                        <span style="font-size:.7rem; padding:2px 8px; border-radius:8px; font-weight:700;
+                            background:{{ '#f5f3ff' if r.type_recu=='Bulletin Salaire' else '#fef3c7' }};
+                            color:{{ '#6c5ce7' if r.type_recu=='Bulletin Salaire' else '#92400e' }};">
+                            {{ r.type_recu }}
+                        </span>
+                    </div>
+                    <div style="font-size:.9rem; font-weight:700; color:#1a1a2e;">{{ r.beneficiaire }}</div>
+                    <div style="font-size:.74rem; color:#6b7280; margin-top:3px; display:flex; gap:12px; flex-wrap:wrap;">
+                        {% if r.mois %}<span><i class="bi bi-calendar3 me-1"></i>{{ r.mois }}</span>{% endif %}
+                        {% if r.salaire_base > 0 %}<span><i class="bi bi-cash me-1" style="color:#6c5ce7;"></i>Salaire : {{ "{:,.0f}".format(r.salaire_base).replace(',', ' ') }} FCFA</span>{% endif %}
+                        {% if r.total_primes > 0 %}<span><i class="bi bi-star me-1" style="color:#f59e0b;"></i>Primes : {{ "{:,.0f}".format(r.total_primes).replace(',', ' ') }} FCFA</span>{% endif %}
+                    </div>
+                    {% if r.notes %}<div style="font-size:.72rem; color:#9ca3af; margin-top:4px; font-style:italic;">{{ r.notes[:80] }}{% if r.notes|length > 80 %}...{% endif %}</div>{% endif %}
+                </div>
+                <div style="text-align:right; margin-left:16px;">
+                    <div style="font-size:1.1rem; font-weight:800; color:#1a1a2e;">{{ "{:,.0f}".format(r.total_net).replace(',', ' ') }} FCFA</div>
+                    <div style="font-size:.72rem; color:#9ca3af;">{{ r.date.strftime('%d/%m/%Y') }}</div>
+                    <button onclick="ouvrirRecu('{{ r.id }}')" class="btn btn-sm btn-outline-secondary mt-1" style="font-size:.74rem;">
+                        <i class="bi bi-eye me-1"></i>Voir reçu
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center py-5">
+            <div style="font-size:3rem; margin-bottom:12px;">📄</div>
+            <h6 style="color:#6b7280;">Aucun bulletin ou reçu émis</h6>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ONGLET 3 : TOUS LES REÇUS -->
+    <div class="tab-content" id="tab-recus">
+        {% if recus %}
+        {% for r in recus %}
+        <div class="recu-card">
+            <div>
+                <div class="recu-num">{{ r.numero }}</div>
+                <div class="recu-ben">{{ r.beneficiaire }}</div>
+                <div class="recu-type">
+                    <span style="background:{{ '#f5f3ff' if r.type_recu=='Bulletin Salaire' else '#fef3c7' }};color:{{ '#6c5ce7' if r.type_recu=='Bulletin Salaire' else '#92400e' }};padding:2px 8px;border-radius:8px;font-size:.7rem;font-weight:700;">
+                        {{ r.type_recu }}
+                    </span>
+                    {% if r.mois %}<span style="margin-left:6px;font-size:.72rem;color:#9ca3af;">{{ r.mois }}</span>{% endif %}
+                </div>
+            </div>
+            <div style="text-align:right;">
+                <div class="recu-mtt">{{ "{:,.0f}".format(r.total_net).replace(',', ' ') }} FCFA</div>
+                <div class="recu-date">{{ r.date.strftime('%d/%m/%Y') }}</div>
+                <button onclick="ouvrirRecu('{{ r.id }}')" class="btn btn-sm btn-outline-secondary mt-1" style="font-size:.74rem;">
+                    <i class="bi bi-eye me-1"></i>Voir reçu
+                </button>
+            </div>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div class="text-center py-5">
+            <div style="font-size:3rem; margin-bottom:12px;">📄</div>
+            <h6 style="color:#6b7280;">Aucun reçu émis</h6>
+        </div>
+        {% endif %}
+    </div>
+
+</div><!-- /main -->
+
+<!-- ══ MODAL PAYER DEPENSE ═════════════════════════════════════════ -->
+<div class="modal fade" id="modalPayer" tabindex="-1">
+<div class="modal-dialog">
+<div class="modal-content">
+    <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Confirmer le paiement</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <p style="font-size:.9rem; color:#374151; margin-bottom:16px;">
+            Vous allez enregistrer le paiement de :
+        </p>
+        <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:14px 18px; margin-bottom:16px;">
+            <div style="font-size:.88rem; font-weight:700; color:#1a1a2e;" id="payerBenef">—</div>
+            <div style="font-size:1.2rem; font-weight:800; color:var(--ks-accent); margin-top:4px;" id="payerMtt">0 FCFA</div>
+        </div>
+        <p style="font-size:.82rem; color:#6b7280;">
+            <i class="bi bi-info-circle me-1"></i>
+            Un reçu sera automatiquement généré et disponible dans l'historique.
+        </p>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-ks" id="btnConfirmerPaiement">
+            <i class="bi bi-check-lg me-1"></i>Confirmer & Générer reçu
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<!-- ══ MODAL BULLETIN SALAIRE ════════════════════════════════════ -->
+<div class="modal fade" id="modalBulletin" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-person me-2"></i>Créer un document de paiement</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+
+        <!-- TYPE DE DOCUMENT -->
+        <div style="display:flex; gap:8px; margin-bottom:16px;">
+            <button type="button" id="btnTypeSalaire" onclick="setTypeDoc('salaire')"
+                class="btn btn-sm" style="flex:1; border-radius:9px; background:#6c5ce7; color:#fff; border:none; font-weight:600; font-size:.84rem; padding:9px;">
+                <i class="bi bi-file-earmark-person me-1"></i>Bulletin de salaire
+            </button>
+            <button type="button" id="btnTypePrime" onclick="setTypeDoc('prime')"
+                class="btn btn-sm btn-outline-secondary" style="flex:1; border-radius:9px; font-weight:600; font-size:.84rem; padding:9px;">
+                <i class="bi bi-star me-1"></i>Reçu de prime(s)
+            </button>
+        </div>
+
+        <div class="row g-3">
+            <!-- BÉNÉFICIAIRE -->
+            <div class="col-md-7">
+                <label class="form-label">Bénéficiaire <span class="text-danger">*</span></label>
+                <div style="display:flex; gap:6px; margin-bottom:6px;">
+                    <button type="button" id="btnBenefTech" onclick="setBenefMode('tech')"
+                        class="btn btn-sm" style="background:#1a1a2e;color:#fff;border:none;border-radius:7px;font-size:.76rem;flex:1;">
+                        <i class="bi bi-person-badge me-1"></i>Technicien enregistré
+                    </button>
+                    <button type="button" id="btnBenefLibre" onclick="setBenefMode('libre')"
+                        class="btn btn-sm btn-outline-secondary" style="border-radius:7px;font-size:.76rem;flex:1;">
+                        <i class="bi bi-pencil me-1"></i>Saisie libre
+                    </button>
+                </div>
+                <div id="benefTechWrap">
+                    <select class="form-select" id="bulTech" onchange="onSelectBulTech(this.value)">
+                        <option value="">— Choisir un technicien —</option>
+                        {% for t in techs %}
+                        <option value="{{ t.id }}"
+                            data-salaire="{{ t.salaire_base or 0 }}"
+                            data-emploi="{{ t.statut_emploi or 'Temporaire' }}"
+                            data-nom="{{ t.nom }}">
+                            {{ t.nom }}{% if t.role %} — {{ t.role }}{% endif %}
+                            {% if t.statut_emploi == 'Salarié' %} 💼{% else %} ⏳{% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div id="benefLibreWrap" style="display:none;">
+                    <input type="text" class="form-control" id="bulBeneficiaire" placeholder="Nom du bénéficiaire">
+                </div>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">Mois / Période <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="bulMois" placeholder="Ex: Avril 2026">
+            </div>
+
+            <!-- SALAIRE : visible si bulletin de salaire -->
+            <div class="col-12" id="salaireSectionWrap">
+                <div style="background:#f5f3ff; border:1.5px solid #6c5ce7; border-radius:10px; padding:13px 16px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                        <label class="form-check-label" style="font-weight:700; font-size:.84rem; color:#6c5ce7; cursor:pointer; display:flex; align-items:center; gap:6px;">
+                            <input type="checkbox" class="form-check-input" id="inclureSalaire" onchange="mettreAJourRecap()" style="width:18px;height:18px;accent-color:#6c5ce7;" checked>
+                            Inclure le salaire de base
+                        </label>
+                    </div>
+                    <div id="salaireInputWrap">
+                        <label class="form-label" style="font-size:.8rem;">Montant (FCFA)</label>
+                        <input type="number" class="form-control" id="bulSalaire" value="0" min="0" oninput="mettreAJourRecap()" style="max-width:220px;">
+                    </div>
+                </div>
+            </div>
+
+            <!-- PRIMES -->
+            <div class="col-12">
+                <div style="background:#fff; border:1.5px solid #e5e7eb; border-radius:10px; padding:13px 16px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+                        <div style="font-weight:700; font-size:.84rem; color:#374151; display:flex; align-items:center; gap:6px;">
+                            <i class="bi bi-star" style="color:#6c5ce7;"></i> Primes
+                        </div>
+                        <span id="nbPrimesDispos" style="font-size:.74rem; color:#9ca3af;"></span>
+                    </div>
+                    <!-- Primes en attente depuis les prestations -->
+                    <div id="primesTechListe" style="margin-bottom:10px;">
+                        <div style="color:#9ca3af; font-size:.82rem; font-style:italic; padding:4px 0;">
+                            Sélectionnez un technicien pour voir ses primes en attente.
+                        </div>
+                    </div>
+                    <!-- Séparateur -->
+                    <div style="border-top:1px dashed #e5e7eb; margin:8px 0 10px;"></div>
+                    <!-- Primes manuelles -->
+                    <div style="font-size:.76rem; font-weight:700; color:#6c5ce7; margin-bottom:8px;">
+                        <i class="bi bi-plus-circle me-1"></i>Primes à ajouter manuellement
+                    </div>
+                    <div id="primesManuellesListe"></div>
+                    <button type="button" onclick="ajouterPrimeManuelle()"
+                        style="background:#f5f3ff; color:#6c5ce7; border:1.5px dashed #a29bfe; border-radius:8px; padding:7px 14px; font-size:.8rem; font-weight:600; cursor:pointer; width:100%; margin-top:4px;">
+                        <i class="bi bi-plus-lg me-1"></i>Ajouter une prime
+                    </button>
+                </div>
+            </div>
+
+            <!-- RÉCAP -->
+            <div class="col-12">
+                <div style="background:#1a1a2e; border-radius:10px; padding:14px 18px; color:#fff;">
+                    <div style="display:flex; justify-content:space-between; font-size:.84rem; margin-bottom:6px;" id="recapSalaireRow">
+                        <span style="color:rgba(255,255,255,.6);">Salaire de base</span>
+                        <strong id="recapSalaire">0 FCFA</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:.84rem; margin-bottom:8px;">
+                        <span style="color:rgba(255,255,255,.6);">Total primes</span>
+                        <strong id="recapPrimes" style="color:#a29bfe;">0 FCFA</strong>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; font-size:1.05rem; font-weight:800; border-top:1px solid rgba(255,255,255,.15); padding-top:8px;">
+                        <span>TOTAL NET</span>
+                        <span id="recapTotal" style="color:#e94560;">0 FCFA</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" id="bulNotes" rows="2" placeholder="Observations..."></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-violet" id="btnCreerBulletin" onclick="creerBulletin()">
+            <i class="bi bi-file-earmark-check me-1"></i>Créer le document
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// ── Ouvrir un reçu dans fenêtre native PyWebView ────────────────
+function ouvrirRecu(recuId) {
+    const url = '/paie/recu/' + recuId;
+    fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=Reçu')
+        .catch(() => {});
+}
+
+// ── Données primes en attente ─────────────────────────────────────
+const ATTENTES = [
+    {% for a in attentes %}
+    {
+        id: {{ a.id }},
+        beneficiaire: {{ (a.beneficiaire or '')|tojson }},
+        montant: {{ a.montant }},
+        description: {{ a.description|tojson }},
+        evt: {{ (a._evt.titre if a._evt else '')|tojson }},
+        technicien_id: {{ a.technicien_id or 'null' }}
+    },
+    {% endfor %}
+];
+
+// ── Onglets ───────────────────────────────────────────────────────
+function showTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+}
+
+// Auto-ouvrir l'onglet depuis l'URL (?tab=recus)
+document.addEventListener('DOMContentLoaded', function() {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab');
+    if (tab === 'bulletins') {
+        const btn = document.getElementById('tabBtnBulletins');
+        if (btn) showTab('bulletins', btn);
+    } else if (tab === 'recus') {
+        const btn = document.getElementById('tabBtnRecus');
+        if (btn) showTab('recus', btn);
+    }
+});
+
+// ── Payer une dépense ─────────────────────────────────────────────
+let depIdCourant = null;
+function payerDepense(id, benef, montant) {
+    depIdCourant = id;
+    document.getElementById('payerBenef').textContent = benef || '(sans nom)';
+    document.getElementById('payerMtt').textContent = new Intl.NumberFormat('fr-FR').format(montant) + ' FCFA';
+    new bootstrap.Modal(document.getElementById('modalPayer')).show();
+}
+
+document.getElementById('btnConfirmerPaiement').addEventListener('click', function() {
+    if (!depIdCourant) return;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>En cours...';
+    fetch('/paie/payer/' + depIdCourant, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalPayer')).hide();
+                // Ouvrir le reçu dans fenêtre native ou nouvel onglet
+                const recuUrl = '/paie/recu/' + d.recu_id;
+                if (typeof window.openNativeWindow === 'function') {
+                    window.openNativeWindow(recuUrl, d.numero);
+                } else {
+                    window.open(recuUrl, '_blank');
+                }
+                setTimeout(() => location.reload(), 800);
+            } else {
+                alert('Erreur lors du paiement');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Confirmer & Générer reçu';
+            }
+        });
+});
+
+// ── Bulletin : type de document ─────────────────────────────────
+let typeDoc = 'salaire'; // 'salaire' | 'prime'
+
+function setTypeDoc(type) {
+    typeDoc = type;
+    const btnS = document.getElementById('btnTypeSalaire');
+    const btnP = document.getElementById('btnTypePrime');
+    const salWrap = document.getElementById('salaireSectionWrap');
+    if (type === 'salaire') {
+        btnS.style.background = '#6c5ce7'; btnS.style.color = '#fff'; btnS.style.border = 'none';
+        btnP.style.background = ''; btnP.style.color = ''; btnP.className = 'btn btn-sm btn-outline-secondary';
+        btnP.style.flex = '1'; btnP.style.borderRadius = '9px'; btnP.style.fontWeight = '600'; btnP.style.fontSize = '.84rem'; btnP.style.padding = '9px';
+        salWrap.style.display = 'block';
+    } else {
+        btnP.style.background = '#6c5ce7'; btnP.style.color = '#fff'; btnP.style.border = 'none';
+        btnS.style.background = ''; btnS.style.color = ''; btnS.className = 'btn btn-sm btn-outline-secondary';
+        btnS.style.flex = '1'; btnS.style.borderRadius = '9px'; btnS.style.fontWeight = '600'; btnS.style.fontSize = '.84rem'; btnS.style.padding = '9px';
+        salWrap.style.display = 'none';
+    }
+    mettreAJourRecap();
+}
+
+function setBenefMode(mode) {
+    const tw = document.getElementById('benefTechWrap');
+    const lw = document.getElementById('benefLibreWrap');
+    const bt = document.getElementById('btnBenefTech');
+    const bl = document.getElementById('btnBenefLibre');
+    if (mode === 'tech') {
+        tw.style.display = 'block'; lw.style.display = 'none';
+        bt.style.background = '#1a1a2e'; bt.style.color = '#fff'; bt.style.border = 'none';
+        bl.style.background = ''; bl.style.color = ''; bl.className = 'btn btn-sm btn-outline-secondary';
+        bl.style.flex = '1'; bl.style.borderRadius = '7px'; bl.style.fontSize = '.76rem';
+    } else {
+        tw.style.display = 'none'; lw.style.display = 'block';
+        bl.style.background = '#1a1a2e'; bl.style.color = '#fff'; bl.style.border = 'none';
+        bt.style.background = ''; bt.style.color = ''; bt.className = 'btn btn-sm btn-outline-secondary';
+        bt.style.flex = '1'; bt.style.borderRadius = '7px'; bt.style.fontSize = '.76rem';
+    }
+}
+
+function onSelectBulTech(techId) {
+    if (!techId) return;
+    const sel = document.getElementById('bulTech');
+    const opt = sel.selectedOptions[0];
+    const sal  = parseFloat(opt.dataset.salaire || 0);
+    const emploi = opt.dataset.emploi || 'Temporaire';
+    // Auto-remplir salaire si Salarié
+    if (emploi === 'Salarié' && typeDoc === 'salaire') {
+        document.getElementById('bulSalaire').value = sal;
+        document.getElementById('inclureSalaire').checked = sal > 0;
+    } else {
+        document.getElementById('inclureSalaire').checked = false;
+        document.getElementById('bulSalaire').value = 0;
+    }
+    chargerPrimesTech(techId);
+    mettreAJourRecap();
+}
+
+function chargerPrimesTech(techId) {
+    const zone = document.getElementById('primesTechListe');
+    const nbDisp = document.getElementById('nbPrimesDispos');
+    const primes = ATTENTES.filter(a => a.technicien_id == techId);
+    nbDisp.textContent = primes.length + ' prime(s) en attente';
+    if (primes.length === 0) {
+        zone.innerHTML = '<div style="color:#9ca3af;font-size:.82rem;font-style:italic;padding:4px 0;">Aucune prime en attente pour ce technicien.</div>';
+        return;
+    }
+    zone.innerHTML = primes.map(p => `
+        <div class="prime-check-item" onclick="togglePrime(this)" data-id="${p.id}" data-mtt="${p.montant}">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div class="pci-nom">${p.description}</div>
+                    <div class="pci-evt">${p.evt ? '📅 ' + p.evt : ''}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <div class="pci-mtt">${new Intl.NumberFormat('fr-FR').format(p.montant)} FCFA</div>
+                    <input type="checkbox" class="form-check-input prime-chk" value="${p.id}" style="width:18px;height:18px;" onclick="event.stopPropagation();" onchange="mettreAJourRecap()">
+                </div>
+            </div>
+        </div>`).join('');
+}
+
+function togglePrime(el) {
+    const chk = el.querySelector('.prime-chk');
+    chk.checked = !chk.checked;
+    el.classList.toggle('selected', chk.checked);
+    mettreAJourRecap();
+}
+
+function togglePrimesSection() {
+    const checked = document.getElementById('inclurePrimes').checked;
+    document.getElementById('primesTechListe').style.opacity = checked ? '1' : '0.35';
+    document.getElementById('primesTechListe').style.pointerEvents = checked ? '' : 'none';
+    mettreAJourRecap();
+}
+
+function mettreAJourRecap() {
+    const inclSal = document.getElementById('inclureSalaire');
+    const sal = (typeDoc === 'salaire' && inclSal && inclSal.checked)
+        ? parseFloat(document.getElementById('bulSalaire').value || 0) : 0;
+    let primes = 0;
+    // Primes en attente cochées
+    document.querySelectorAll('.prime-chk:checked').forEach(c => {
+        primes += parseFloat(c.closest('[data-mtt]').dataset.mtt || 0);
+    });
+    // Primes manuelles
+    primes += getPrimesManuellesTotal();
+    const fmt = v => new Intl.NumberFormat('fr-FR').format(v) + ' FCFA';
+    const recapSalRow = document.getElementById('recapSalaireRow');
+    if (recapSalRow) recapSalRow.style.display = typeDoc === 'salaire' ? 'flex' : 'none';
+    document.getElementById('recapSalaire').textContent = fmt(sal);
+    document.getElementById('recapPrimes').textContent  = fmt(primes);
+    document.getElementById('recapTotal').textContent   = fmt(sal + primes);
+}
+
+// Quand la checkbox salaire change
+document.getElementById('inclureSalaire').addEventListener('change', function() {
+    document.getElementById('salaireInputWrap').style.opacity = this.checked ? '1' : '0.35';
+    document.getElementById('salaireInputWrap').style.pointerEvents = this.checked ? '' : 'none';
+    mettreAJourRecap();
+});
+
+// ── Primes manuelles ─────────────────────────────────────────────
+let primeManuelleIdx = 0;
+
+function ajouterPrimeManuelle() {
+    const idx = primeManuelleIdx++;
+    const div = document.createElement('div');
+    div.id = 'primeManu_' + idx;
+    div.style.cssText = 'display:flex; gap:8px; align-items:center; margin-bottom:8px; background:#f9f8ff; border-radius:8px; padding:8px 10px; border:1px solid #e9e5ff;';
+    div.innerHTML = `
+        <input type="text" placeholder="Description (ex: Prime concert)" data-pm-desc
+            style="flex:2; border:1.5px solid #e5e7eb; border-radius:7px; padding:6px 10px; font-size:.82rem; outline:none;"
+            oninput="mettreAJourRecap()">
+        <input type="number" placeholder="Montant (FCFA)" data-pm-mtt min="0"
+            style="flex:1; border:1.5px solid #e5e7eb; border-radius:7px; padding:6px 10px; font-size:.82rem; outline:none;"
+            oninput="mettreAJourRecap()">
+        <button type="button" onclick="supprimerPrimeManuelle('primeManu_${idx}')"
+            style="background:#fee2e2; color:#991b1b; border:none; border-radius:7px; width:30px; height:30px; cursor:pointer; font-size:.82rem; flex-shrink:0;">
+            <i class="bi bi-trash"></i>
+        </button>`;
+    document.getElementById('primesManuellesListe').appendChild(div);
+    div.querySelector('[data-pm-desc]').focus();
+}
+
+function supprimerPrimeManuelle(id) {
+    const el = document.getElementById(id);
+    if (el) { el.remove(); mettreAJourRecap(); }
+}
+
+function getPrimesManuellesTotal() {
+    let total = 0;
+    document.querySelectorAll('[data-pm-mtt]').forEach(inp => {
+        total += parseFloat(inp.value || 0);
+    });
+    return total;
+}
+
+function creerBulletin() {
+    const btn   = document.getElementById('btnCreerBulletin');
+    const mois  = document.getElementById('bulMois').value.trim();
+    const notes = document.getElementById('bulNotes').value;
+    const inclSal = document.getElementById('inclureSalaire').checked && typeDoc === 'salaire';
+    const salaire = inclSal ? document.getElementById('bulSalaire').value : 0;
+
+    // Bénéficiaire
+    const techWrapVisible = document.getElementById('benefTechWrap').style.display !== 'none';
+    let techId = null, benef = '';
+    if (techWrapVisible) {
+        techId = document.getElementById('bulTech').value || null;
+        const sel = document.getElementById('bulTech');
+        benef = techId ? sel.selectedOptions[0].dataset.nom || '' : '';
+    } else {
+        benef = document.getElementById('bulBeneficiaire').value.trim();
+    }
+
+    if (!benef && !techId) { alert('Veuillez renseigner le bénéficiaire.'); return; }
+    if (!mois)             { alert('Veuillez indiquer le mois / la période.'); return; }
+    const primeIds = [...document.querySelectorAll('.prime-chk:checked')].map(c => c.value);
+    // Primes manuelles
+    const primesManu = [];
+    document.querySelectorAll('[data-pm-desc]').forEach((inp, i) => {
+        const desc = inp.value.trim();
+        const mttEl = inp.closest('div').querySelector('[data-pm-mtt]');
+        const mtt  = parseFloat(mttEl ? mttEl.value || 0 : 0);
+        if (desc && mtt > 0) primesManu.push({desc, mtt});
+    });
+    const totalPrimesAtt = primeIds.reduce((s,id) => {
+        const el = document.querySelector(`.prime-chk[value="${id}"]`);
+        return s + (el ? parseFloat(el.closest('[data-mtt]').dataset.mtt||0) : 0);
+    }, 0);
+    const totalPrimesManu = primesManu.reduce((s,p) => s + p.mtt, 0);
+    const total = parseFloat(salaire) + totalPrimesAtt + totalPrimesManu;
+    if (total <= 0) { alert('Le total est à 0. Ajoutez un salaire ou des primes.'); return; }
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>En cours...';
+    const fd = new FormData();
+    if (techId) fd.append('technicien_id', techId);
+    fd.append('beneficiaire', benef);
+    fd.append('mois', mois);
+    fd.append('salaire_base', salaire);
+    fd.append('type_recu', typeDoc === 'salaire' ? 'Bulletin Salaire' : 'Reçu Prestation');
+    fd.append('notes', notes);
+    primeIds.forEach(id => fd.append('primes_ids[]', id));
+    // Primes manuelles encodées en JSON
+    if (primesManu.length > 0) fd.append('primes_manuelles', JSON.stringify(primesManu));
+
+    fetch('/paie/bulletin', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>Créer le document';
+            if (d.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalBulletin')).hide();
+                const recuUrl = '/paie/recu/' + d.recu_id;
+                fetch('/api/open-window?url=' + encodeURIComponent(recuUrl) + '&title=Reçu+' + d.numero)
+                    .catch(() => {});
+                // Recharger et afficher l'onglet historique
+                setTimeout(() => {
+                    window.location.href = '/paie?tab=bulletins';
+                }, 800);
+            } else { alert('Erreur : ' + (d.error || 'inconnue')); }
+        });
+}
+</script>
+</body>
+</html>

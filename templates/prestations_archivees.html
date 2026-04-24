@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Archives Prestations — KS Production</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root { --ks-primary:#1a1a2e; --ks-accent:#e94560; }
+        body  { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .sidebar { width:200px; min-height:100vh; background:var(--ks-primary); position:fixed; left:0; top:0; z-index:100; display:flex; flex-direction:column; }
+        .brand { color:#fff; font-size:.95rem; font-weight:700; padding:14px 16px 12px; border-bottom:1px solid rgba(255,255,255,.1); }
+        .brand span { color:var(--ks-accent); }
+        .brand small { display:block; font-size:.58rem; color:rgba(255,255,255,.3); font-weight:400; }
+        .sidebar nav { flex:1; padding:8px 0; }
+        .nav-section { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.28); padding:10px 16px 3px; font-weight:600; }
+        .nav-link { color:#aab4c4; padding:8px 16px; display:flex; align-items:center; gap:8px; font-size:.8rem; transition:all .2s; }
+        .nav-link:hover,.nav-link.active { color:#fff; background:var(--ks-accent); border-radius:8px; margin:0 6px; padding:8px 10px; }
+        .nav-link i { font-size:.88rem; width:16px; }
+        .sidebar-footer { padding:8px 6px 14px; border-top:1px solid rgba(255,255,255,.1); }
+        .main-content { margin-left:200px; padding:20px; }
+        .topbar { background:#fff; border-radius:12px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+        .topbar h5 { margin:0; font-weight:700; color:var(--ks-primary); font-size:.95rem; }
+
+        /* Stats */
+        .stat-card { background:#fff; border-radius:12px; padding:16px 20px; box-shadow:0 1px 6px rgba(0,0,0,.06); display:flex; align-items:center; gap:14px; }
+        .stat-ico { width:44px; height:44px; border-radius:12px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+        .stat-val { font-size:1.4rem; font-weight:800; color:var(--ks-primary); }
+        .stat-lbl { font-size:.68rem; color:#6b7280; text-transform:uppercase; letter-spacing:.05em; }
+
+        /* Cards archives */
+        .archive-card {
+            background:#fff; border-radius:14px; box-shadow:0 1px 8px rgba(0,0,0,.07);
+            margin-bottom:14px; overflow:hidden; transition:transform .15s, box-shadow .15s;
+        }
+        .archive-card:hover { transform:translateY(-2px); box-shadow:0 4px 20px rgba(0,0,0,.11); }
+        .archive-card:hover .arch-titre::after { content:' →'; color:var(--ks-accent); font-size:.85rem; }
+
+        .arch-header {
+            padding:14px 20px; display:flex; justify-content:space-between; align-items:flex-start;
+            border-bottom:1px solid #f0f0f0;
+            background:linear-gradient(135deg, #f9fafb, #fff);
+        }
+        .arch-titre { font-size:.95rem; font-weight:800; color:var(--ks-primary); }
+        .arch-meta  { font-size:.74rem; color:#6b7280; margin-top:3px; display:flex; gap:10px; flex-wrap:wrap; }
+        .arch-meta i { color:var(--ks-accent); }
+        .arch-date-archive { font-size:.72rem; color:#9ca3af; text-align:right; }
+
+        /* Bilan financier */
+        .arch-bilan {
+            padding:14px 20px;
+            display:grid; grid-template-columns:repeat(4,1fr); gap:12px;
+        }
+        .bilan-cell { text-align:center; }
+        .bilan-label { font-size:.62rem; text-transform:uppercase; letter-spacing:.08em; color:#9ca3af; font-weight:700; margin-bottom:4px; }
+        .bilan-val   { font-size:1rem; font-weight:800; }
+        .bilan-rec   { color:#0984e3; }
+        .bilan-dep   { color:#e94560; }
+        .bilan-att   { color:#f59e0b; }
+        .bilan-solde-pos { color:#00b894; }
+        .bilan-solde-neg { color:#e94560; }
+
+        /* Dépenses détail */
+        .arch-footer {
+            padding:10px 20px; border-top:1px solid #f0f0f0;
+            display:flex; justify-content:space-between; align-items:center;
+            background:#fafafa;
+        }
+        .arch-tags { display:flex; gap:6px; flex-wrap:wrap; }
+        .arch-tag  { font-size:.68rem; padding:2px 8px; border-radius:10px; font-weight:600; }
+        .tag-section-s { background:#dbeafe; color:#1d4ed8; }
+        .tag-section-o { background:#fed7aa; color:#c2410c; }
+        .tag-section-g { background:#ede9fe; color:#5b21b6; }
+        .tag-archive   { background:#f0fdf4; color:#065f46; }
+
+        /* Hamburger */
+        .hamburger-btn { display:none; position:fixed; top:12px; left:12px; z-index:200; background:var(--ks-accent); color:#fff; border:none; border-radius:10px; width:40px; height:40px; font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; }
+        .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; }
+        .sidebar-overlay.active { display:block; }
+        @media(max-width:768px) {
+            .hamburger-btn { display:flex; }
+            .sidebar { transform:translateX(-100%); transition:transform .3s; z-index:160; width:240px !important; }
+            .sidebar.open { transform:translateX(0); }
+            .main-content { margin-left:0 !important; padding:12px !important; padding-top:60px !important; }
+            .arch-bilan { grid-template-columns:1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <div class="brand">🎵 KS <span>Production</span><small>Archives</small></div>
+    <nav>
+        <div class="nav-section">Menu</div>
+        <a href="/dashboard"  class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="/factures"   class="nav-link"><i class="bi bi-receipt"></i> Factures</a>
+        <a href="/proformas"  class="nav-link"><i class="bi bi-file-earmark-text"></i> Proformas</a>
+        <a href="/agenda"     class="nav-link"><i class="bi bi-calendar3"></i> Agenda</a>
+        <a href="/agenda/prestations/archivees" class="nav-link active"><i class="bi bi-archive"></i> Archives</a>
+        <a href="/operations" class="nav-link"><i class="bi bi-arrow-left-right"></i> Opérations</a>
+        <a href="/clients"    class="nav-link"><i class="bi bi-people"></i> Clients</a>
+        <div class="nav-section">Production</div>
+        <a href="/techniciens"  class="nav-link"><i class="bi bi-person-badge"></i> Techniciens</a>
+        <a href="/materiels"    class="nav-link"><i class="bi bi-box-seam"></i> Matériels</a>
+        <a href="/fournisseurs" class="nav-link"><i class="bi bi-shop"></i> Fournisseurs</a>
+        <a href="/paie"         class="nav-link"><i class="bi bi-cash-coin"></i> Paie & Primes</a>
+        <div class="nav-section">Finance</div>
+        <a href="/paiements"  class="nav-link"><i class="bi bi-clock-history"></i> Paiements</a>
+        <a href="/relances"   class="nav-link"><i class="bi bi-bell-fill"></i> Relances</a>
+        <a href="/rapport"    class="nav-link"><i class="bi bi-bar-chart-line"></i> Rapport</a>
+        {% if role == 'Administrateur' %}
+        <div class="nav-section">Admin</div>
+        <a href="/services"    class="nav-link"><i class="bi bi-grid"></i> Services</a>
+        <a href="/utilisateurs" class="nav-link"><i class="bi bi-person-gear"></i> Utilisateurs</a>
+        <a href="/parametres"  class="nav-link"><i class="bi bi-gear"></i> Paramètres</a>
+        <a href="/sauvegarde"  class="nav-link"><i class="bi bi-cloud-arrow-down"></i> Sauvegarde</a>
+        {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/profil"  class="nav-link"><i class="bi bi-person-circle"></i> Mon Profil</a>
+        <a href="/logout"  class="nav-link" style="color:#e74c3c;"><i class="bi bi-box-arrow-left"></i> Déconnexion</a>
+    </div>
+</div>
+
+<button class="hamburger-btn" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('active');"><i class="bi bi-list"></i></button>
+<div class="sidebar-overlay" id="overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('active');"></div>
+
+<!-- MAIN -->
+<div class="main-content">
+
+    <div class="topbar">
+        <div>
+            <h5><i class="bi bi-archive me-2" style="color:var(--ks-accent);"></i>Archives des Prestations</h5>
+            <small class="text-muted">Historique des prestations terminées & clôturées</small>
+        </div>
+        <a href="/agenda" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-calendar3 me-1"></i>Retour à l'Agenda
+        </a>
+    </div>
+
+    <!-- STATS GLOBALES -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#f0f2f5;color:var(--ks-primary);"><i class="bi bi-archive"></i></div>
+                <div><div class="stat-val">{{ archives|length }}</div><div class="stat-lbl">Prestations archivées</div></div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#dbeafe;color:#0984e3;"><i class="bi bi-receipt"></i></div>
+                <div>
+                    <div class="stat-val" style="color:#0984e3; font-size:1.1rem;">
+                        {{ "{:,.0f}".format(archives|sum(attribute='total_recettes')).replace(',', ' ') }}
+                        <small style="font-size:.55rem;">FCFA</small>
+                    </div>
+                    <div class="stat-lbl">Total recettes</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            <div class="stat-card">
+                <div class="stat-ico" style="background:#fee2e2;color:#e94560;"><i class="bi bi-cash-stack"></i></div>
+                <div>
+                    <div class="stat-val" style="color:#e94560; font-size:1.1rem;">
+                        {{ "{:,.0f}".format(archives|sum(attribute='total_depenses')).replace(',', ' ') }}
+                        <small style="font-size:.55rem;">FCFA</small>
+                    </div>
+                    <div class="stat-lbl">Total dépenses</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-6 col-lg-3">
+            {% set total_solde = archives|sum(attribute='benefice_net') %}
+            <div class="stat-card">
+                <div class="stat-ico" style="background:{{ '#d1fae5' if total_solde >= 0 else '#fee2e2' }};color:{{ '#065f46' if total_solde >= 0 else '#991b1b' }};"><i class="bi bi-graph-up-arrow"></i></div>
+                <div>
+                    <div class="stat-val" style="color:{{ '#065f46' if total_solde >= 0 else '#991b1b' }}; font-size:1.1rem;">
+                        {{ "{:,.0f}".format(total_solde).replace(',', ' ') }}
+                        <small style="font-size:.55rem;">FCFA</small>
+                    </div>
+                    <div class="stat-lbl">Bénéfice net total</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- LISTE ARCHIVES -->
+    {% if archives %}
+    {% for arch in archives %}
+    {% set evt = arch.evenement %}
+    <div class="archive-card" onclick="voirDetailArchive({{ arch.evenement_id }}, '{{ (evt.titre if evt else 'Prestation #'+arch.evenement_id|string)|replace("'","\'")|e }}')" style="cursor:pointer;">
+
+        <!-- HEADER -->
+        <div class="arch-header">
+            <div>
+                <div class="arch-titre">
+                    {% if evt %}{{ evt.titre }}{% else %}Prestation #{{ arch.evenement_id }}{% endif %}
+                </div>
+                <div class="arch-meta">
+                    {% if evt %}
+                    {% if evt.date %}<span><i class="bi bi-calendar3"></i> {{ evt.date.strftime('%d/%m/%Y') }}</span>{% endif %}
+                    {% if evt.heure_debut %}<span><i class="bi bi-clock"></i> {{ evt.heure_debut }}{% if evt.heure_fin %} – {{ evt.heure_fin }}{% endif %}</span>{% endif %}
+                    {% if evt.nom_client %}<span><i class="bi bi-person"></i> {{ evt.nom_client }}</span>{% endif %}
+                    {% if evt.lieu %}<span><i class="bi bi-geo-alt"></i> {{ evt.lieu }}</span>{% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="arch-date-archive">
+                <div style="font-size:.68rem; color:#9ca3af;">Archivée le</div>
+                <div style="font-weight:700; color:var(--ks-primary);">{{ arch.date_archivage.strftime('%d/%m/%Y') }}</div>
+                <div style="font-size:.7rem; color:#9ca3af;">par {{ arch.archive_par or '—' }}</div>
+            </div>
+        </div>
+
+        <!-- BILAN FINANCIER -->
+        <div class="arch-bilan">
+            <div class="bilan-cell">
+                <div class="bilan-label"><i class="bi bi-receipt me-1"></i>Recettes</div>
+                <div class="bilan-val bilan-rec">{{ "{:,.0f}".format(arch.total_recettes).replace(',', ' ') }} <small style="font-size:.55rem;">FCFA</small></div>
+            </div>
+            <div class="bilan-cell">
+                <div class="bilan-label"><i class="bi bi-cash-stack me-1"></i>Dépenses</div>
+                <div class="bilan-val bilan-dep">{{ "{:,.0f}".format(arch.total_depenses).replace(',', ' ') }} <small style="font-size:.55rem;">FCFA</small></div>
+            </div>
+            <div class="bilan-cell">
+                <div class="bilan-label"><i class="bi bi-hourglass me-1"></i>Nb dépenses</div>
+                <div class="bilan-val" style="color:#6b7280;">{{ arch.nb_depenses }}</div>
+            </div>
+            <div class="bilan-cell">
+                <div class="bilan-label"><i class="bi bi-graph-up-arrow me-1"></i>Solde net</div>
+                {% set solde = arch.benefice_net %}
+                <div class="bilan-val {{ 'bilan-solde-pos' if solde >= 0 else 'bilan-solde-neg' }}">
+                    {{ "{:,.0f}".format(solde).replace(',', ' ') }} <small style="font-size:.55rem;">FCFA</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- FOOTER : tags + actions -->
+        <div class="arch-footer">
+            <div class="arch-tags">
+                <span class="arch-tag tag-archive"><i class="bi bi-check-circle-fill me-1"></i>Terminée</span>
+                {% if evt %}
+                {% if evt.section == 'Studio' %}<span class="arch-tag tag-section-s">Studio</span>
+                {% elif evt.section == 'Sonorisation' %}<span class="arch-tag tag-section-o">Sono</span>
+                {% elif evt.section %}<span class="arch-tag tag-section-g">{{ evt.section }}</span>{% endif %}
+                {% if evt.facture %}<span class="arch-tag" style="background:#f5f3ff;color:#6c5ce7;">
+                    <i class="bi bi-receipt me-1"></i>{{ evt.facture.numero }}</span>{% endif %}
+                {% endif %}
+                {% if arch.notes %}<span style="font-size:.72rem; color:#9ca3af; font-style:italic;">{{ arch.notes }}</span>{% endif %}
+            </div>
+            <div style="display:flex; gap:8px;">
+                {% if evt %}
+                <a href="/agenda/fiche-pdf/{{ arch.evenement_id }}"
+                   target="_blank" class="btn btn-sm btn-outline-danger" style="font-size:.76rem;"
+                   onclick="event.stopPropagation();">
+                    <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+    {% endfor %}
+
+    {% else %}
+    <div class="text-center py-5">
+        <div style="font-size:3.5rem; margin-bottom:14px;">📦</div>
+        <h5 style="color:#6b7280;">Aucune prestation archivée</h5>
+        <p style="font-size:.88rem; color:#9ca3af; max-width:360px; margin:8px auto;">
+            Les prestations clôturées depuis l'Agenda apparaîtront ici avec leur bilan financier complet.
+        </p>
+        <a href="/agenda" class="btn btn-sm" style="background:var(--ks-accent);color:#fff;border:none;margin-top:8px;">
+            <i class="bi bi-calendar3 me-1"></i>Aller à l'Agenda
+        </a>
+    </div>
+    {% endif %}
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- ══ MODAL DÉTAIL ARCHIVE ══════════════════════════════════ -->
+<div class="modal fade" id="modalDetailArchive" tabindex="-1">
+<div class="modal-dialog modal-xl" style="max-width:860px;">
+<div class="modal-content" style="max-height:90vh; display:flex; flex-direction:column;">
+
+    <div class="modal-header" style="background:#1a1a2e; color:#fff; padding:12px 20px; flex-shrink:0;">
+        <div>
+            <h6 class="modal-title mb-0" id="archModalTitre" style="font-weight:700;"></h6>
+            <small id="archModalMeta" style="color:rgba(255,255,255,.45); font-size:.72rem;"></small>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+            <a id="archModalPDF" href="#" target="_blank"
+               class="btn btn-sm" style="background:#e94560;color:#fff;border:none;font-size:.78rem;border-radius:7px;">
+                <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
+            </a>
+            <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+        </div>
+    </div>
+
+    <!-- Onglets -->
+    <div style="background:#f8f9fa; border-bottom:1px solid #e5e7eb; flex-shrink:0; padding:0 16px;">
+        <div style="display:flex; gap:0;">
+            <button class="tab-modal-btn active" onclick="switchArchTab('infos',this)"><i class="bi bi-info-circle me-1"></i>Infos</button>
+            <button class="tab-modal-btn" onclick="switchArchTab('equipe',this)"><i class="bi bi-people me-1"></i>Équipe</button>
+            <button class="tab-modal-btn" onclick="switchArchTab('depenses',this)"><i class="bi bi-cash-coin me-1"></i>Dépenses</button>
+        </div>
+    </div>
+
+    <div class="modal-body" style="overflow-y:auto; flex:1; padding:16px 20px;">
+
+        <!-- ONGLET INFOS -->
+        <div id="archTabInfos" class="tab-arch-content active">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
+                <div style="background:#f8f9fa; border-radius:10px; padding:14px;">
+                    <div style="font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; margin-bottom:10px;">
+                        <i class="bi bi-calendar3 me-1" style="color:#e94560;"></i>Informations
+                    </div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; font-size:.84rem;">
+                        <div><div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase;">Date</div><strong id="archDate" style="color:#e94560;"></strong></div>
+                        <div><div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase;">Horaire</div><strong id="archHeure"></strong></div>
+                        <div><div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase;">Client</div><strong id="archClient"></strong></div>
+                        <div><div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase;">Lieu</div><strong id="archLieu"></strong></div>
+                        <div><div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase;">Section</div><strong id="archSection"></strong></div>
+                        <div><div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase;">Statut</div><strong>📦 Terminée</strong></div>
+                    </div>
+                    <div style="margin-top:10px; font-size:.82rem;">
+                        <div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase; margin-bottom:3px;">Notes</div>
+                        <span id="archNotes" style="color:#6b7280;"></span>
+                    </div>
+                </div>
+                <!-- Bilan financier -->
+                <div style="background:#f8f9fa; border-radius:10px; padding:14px;">
+                    <div style="font-size:.68rem; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:#6b7280; margin-bottom:10px;">
+                        <i class="bi bi-graph-up-arrow me-1" style="color:#e94560;"></i>Bilan financier
+                    </div>
+                    <div id="archBilan" style="font-size:.84rem;"></div>
+                    <div style="margin-top:12px; font-size:.8rem;">
+                        <div style="font-size:.63rem;color:#9ca3af;text-transform:uppercase; margin-bottom:4px;">Facture liée</div>
+                        <div id="archFacture" style="color:#6c5ce7; font-weight:700;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ONGLET ÉQUIPE -->
+        <div id="archTabEquipe" class="tab-arch-content">
+            <div id="archEquipeListe" style="font-size:.84rem; color:#6b7280;">Chargement...</div>
+        </div>
+
+        <!-- ONGLET DÉPENSES -->
+        <div id="archTabDepenses" class="tab-arch-content">
+            <div id="archDepensesListe" style="font-size:.84rem;">Chargement...</div>
+        </div>
+
+    </div><!-- /modal-body -->
+    <div class="modal-footer" style="flex-shrink:0; padding:10px 20px;">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fermer</button>
+    </div>
+</div>
+</div>
+</div>
+
+<style>
+    .tab-modal-btn { background:transparent; border:none; border-bottom:3px solid transparent; padding:10px 16px; font-size:.8rem; font-weight:600; color:#6b7280; cursor:pointer; transition:all .15s; }
+    .tab-modal-btn:hover { color:#1a1a2e; }
+    .tab-modal-btn.active { color:#e94560; border-bottom-color:#e94560; }
+    .tab-arch-content { display:none; }
+    .tab-arch-content.active { display:block; }
+</style>
+
+<script>
+function switchArchTab(nom, btn) {
+    document.querySelectorAll('.tab-arch-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-modal-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('archTab' + nom.charAt(0).toUpperCase() + nom.slice(1)).classList.add('active');
+    btn.classList.add('active');
+}
+
+function voirDetailArchive(evtId, titre) {
+    // Reset onglets
+    document.querySelectorAll('.tab-arch-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-modal-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('archTabInfos').classList.add('active');
+    document.querySelectorAll('.tab-modal-btn')[0].classList.add('active');
+
+    document.getElementById('archModalTitre').textContent = titre;
+    document.getElementById('archModalMeta').textContent  = 'Chargement...';
+    document.getElementById('archModalPDF').href = '/agenda/fiche-pdf/' + evtId;
+
+    const fmt = v => new Intl.NumberFormat('fr-FR').format(v) + ' FCFA';
+
+    // Charger les détails
+    fetch('/api/archive-detail/' + evtId)
+        .then(r => r.json())
+        .then(d => {
+            const evt = d.evenement || {};
+            const arch = d.archive || {};
+
+            // Meta header
+            document.getElementById('archModalMeta').textContent =
+                (evt.date || '') + (evt.heure_debut ? ' · ' + evt.heure_debut + (evt.heure_fin ? '–'+evt.heure_fin : '') : '') +
+                (evt.nom_client ? ' · ' + evt.nom_client : '');
+
+            // Infos
+            document.getElementById('archDate').textContent    = evt.date || '—';
+            document.getElementById('archHeure').textContent   = (evt.heure_debut || '') + (evt.heure_fin ? ' – '+evt.heure_fin : '');
+            document.getElementById('archClient').textContent  = evt.nom_client || '—';
+            document.getElementById('archLieu').textContent    = evt.lieu || '—';
+            document.getElementById('archSection').textContent = evt.section || '—';
+            document.getElementById('archNotes').textContent   = evt.notes || '—';
+            document.getElementById('archFacture').textContent = evt.facture_num ? evt.facture_num : '—';
+
+            // Bilan
+            const solde = arch.benefice_net || 0;
+            document.getElementById('archBilan').innerHTML = `
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                    <span style="color:#0984e3;font-weight:600;"><i class="bi bi-receipt me-1"></i>Recettes</span>
+                    <strong style="color:#0984e3;">${fmt(arch.total_recettes||0)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                    <span style="color:#e94560;font-weight:600;"><i class="bi bi-cash-stack me-1"></i>Dépenses</span>
+                    <strong style="color:#e94560;">${fmt(arch.total_depenses||0)}</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;background:#fff;border-radius:8px;padding:7px 10px;border:1px solid #e5e7eb;">
+                    <strong><i class="bi bi-graph-up-arrow me-1"></i>Solde net</strong>
+                    <strong style="color:${solde>=0?'#065f46':'#991b1b'}">${fmt(solde)}</strong>
+                </div>`;
+
+            // Équipe
+            const techs = d.techniciens || [];
+            document.getElementById('archEquipeListe').innerHTML = techs.length ?
+                techs.map(t => `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:#f5f3ff;border-radius:8px;margin-bottom:6px;">
+                    <i class="bi bi-person-badge" style="color:#6c5ce7;"></i>
+                    <strong>${t.nom}</strong>
+                    <span style="font-size:.74rem;color:#6b7280;">${t.role || t.specialite || ''}</span>
+                </div>`).join('') :
+                '<div style="color:#9ca3af;font-size:.84rem;">Aucun technicien assigné</div>';
+
+            // Dépenses
+            const deps = d.depenses || [];
+            if (!deps.length) {
+                document.getElementById('archDepensesListe').innerHTML = '<div style="color:#9ca3af;font-size:.84rem;">Aucune dépense enregistrée</div>';
+                return;
+            }
+            const totalDep = deps.reduce((s,dep) => s+dep.montant, 0);
+            document.getElementById('archDepensesListe').innerHTML =
+                deps.map(dep => `
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;margin-bottom:5px;background:${dep.statut==='Payé'?'#f0fdf4':'#fffbeb'};border:1px solid ${dep.statut==='Payé'?'#bbf7d0':'#fde68a'};">
+                    <div>
+                        <span style="font-weight:700;font-size:.84rem;color:#1a1a2e;">${dep.description}</span>
+                        ${dep.beneficiaire ? `<span style="font-size:.72rem;color:#6b7280;margin-left:6px;">${dep.beneficiaire}</span>` : ''}
+                        <span style="font-size:.68rem;padding:1px 6px;border-radius:6px;margin-left:6px;background:${dep.statut==='Payé'?'#d1fae5':'#fef3c7'};color:${dep.statut==='Payé'?'#065f46':'#92400e'};font-weight:700;">${dep.statut}</span>
+                    </div>
+                    <strong style="font-size:.86rem;color:${dep.statut==='Payé'?'#065f46':'#92400e'};">${fmt(dep.montant)}</strong>
+                </div>`).join('') +
+                `<div style="display:flex;justify-content:space-between;padding:9px 12px;background:#1a1a2e;border-radius:8px;margin-top:8px;">
+                    <strong style="color:#fff;">Total</strong>
+                    <strong style="color:#e94560;">${fmt(totalDep)}</strong>
+                </div>`;
+        })
+        .catch(() => {
+            document.getElementById('archModalMeta').textContent = 'Erreur de chargement';
+        });
+
+    new bootstrap.Modal(document.getElementById('modalDetailArchive')).show();
+}
+</script>
+</body>
+</html>

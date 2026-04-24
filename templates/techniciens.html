@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Techniciens — KS Production</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        :root { --ks-primary:#1a1a2e; --ks-accent:#e94560; --ks-green:#00b894; --ks-violet:#6c5ce7; }
+        body { background:#f0f2f5; font-family:'Segoe UI',sans-serif; }
+        .sidebar { width:200px; min-height:100vh; background:var(--ks-primary); position:fixed; left:0; top:0; z-index:100; display:flex; flex-direction:column; }
+        .brand { color:#fff; font-size:.95rem; font-weight:700; padding:14px 16px 12px; border-bottom:1px solid rgba(255,255,255,.1); }
+        .brand span { color:var(--ks-accent); }
+        .brand small { display:block; font-size:.58rem; color:rgba(255,255,255,.3); font-weight:400; }
+        .sidebar nav { flex:1; padding:8px 0; }
+        .nav-section { font-size:.58rem; text-transform:uppercase; letter-spacing:.1em; color:rgba(255,255,255,.28); padding:10px 16px 3px; font-weight:600; }
+        .nav-link { color:#aab4c4; padding:8px 16px; display:flex; align-items:center; gap:8px; font-size:.8rem; transition:all .2s; }
+        .nav-link:hover,.nav-link.active { color:#fff; background:var(--ks-accent); border-radius:8px; margin:0 6px; padding:8px 10px; }
+        .nav-link i { font-size:.88rem; width:16px; }
+        .sidebar-footer { padding:8px 6px 14px; border-top:1px solid rgba(255,255,255,.1); }
+        .main-content { margin-left:200px; padding:20px; }
+        .topbar { background:#fff; border-radius:12px; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+        .topbar h5 { margin:0; font-weight:700; color:var(--ks-primary); font-size:.95rem; }
+
+        /* STATS */
+        .stat-card { border-radius:12px; padding:16px 20px; color:#fff; display:flex; justify-content:space-between; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,.1); }
+        .stat-card .lbl { font-size:.65rem; opacity:.8; text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
+        .stat-card .val { font-size:1.3rem; font-weight:800; }
+        .stat-card .ico { font-size:1.6rem; opacity:.3; }
+
+        /* CARDS */
+        .tech-card { background:#fff; border-radius:14px; padding:18px; box-shadow:0 1px 6px rgba(0,0,0,.06); transition:transform .2s,box-shadow .2s; position:relative; overflow:hidden; }
+        .tech-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,.1); }
+        .tech-card .stripe { position:absolute; top:0; left:0; right:0; height:4px; }
+        .stripe-dispo   { background:linear-gradient(90deg,#00b894,#00cec9); }
+        .stripe-inactif { background:linear-gradient(90deg,#636e72,#b2bec3); }
+        .tech-avatar { width:50px; height:50px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:1.2rem; font-weight:800; color:#fff; margin-bottom:10px; }
+        .tech-nom    { font-size:.9rem; font-weight:800; color:var(--ks-primary); margin-bottom:1px; }
+        .tech-role   { font-size:.72rem; color:var(--ks-violet); font-weight:600; margin-bottom:1px; }
+        .tech-spec   { font-size:.7rem; color:#6b7280; margin-bottom:8px; }
+        .tech-info   { font-size:.72rem; color:#555; display:flex; align-items:center; gap:5px; margin-bottom:3px; }
+        .tech-info i { color:var(--ks-accent); width:13px; }
+
+        .badge-dispo   { background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:20px; font-size:.64rem; font-weight:700; }
+        .badge-inactif { background:#f3f4f6; color:#6b7280; padding:2px 8px; border-radius:20px; font-size:.64rem; font-weight:700; }
+        .badge-salarie { background:#f5f3ff; color:#5b21b6; padding:2px 8px; border-radius:20px; font-size:.64rem; font-weight:700; }
+        .badge-tempo   { background:#fef3c7; color:#92400e; padding:2px 8px; border-radius:20px; font-size:.64rem; font-weight:700; }
+        .salaire-tag   { font-size:.68rem; color:#065f46; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:7px; padding:2px 7px; font-weight:700; margin-top:5px; display:inline-block; }
+
+        .tech-actions { display:flex; gap:5px; margin-top:11px; flex-wrap:wrap; }
+        .btn-edit { background:#f0f2f5; color:#374151; border:none; border-radius:7px; padding:5px 11px; font-size:.74rem; cursor:pointer; display:flex; align-items:center; gap:4px; }
+        .btn-edit:hover { background:#e5e7eb; }
+        .btn-toggle-on  { background:#fef3c7; color:#92400e; border:none; border-radius:7px; padding:5px 11px; font-size:.74rem; cursor:pointer; }
+        .btn-toggle-off { background:#d1fae5; color:#065f46; border:none; border-radius:7px; padding:5px 11px; font-size:.74rem; cursor:pointer; }
+        .btn-del { background:#fee2e2; color:#991b1b; border:none; border-radius:7px; padding:5px 9px; font-size:.74rem; cursor:pointer; }
+        .btn-del:hover { background:#991b1b; color:#fff; }
+        .empty-state { text-align:center; padding:50px; color:#aaa; grid-column:1/-1; }
+
+        /* MODAL */
+        .modal-header { background:var(--ks-primary); color:#fff; }
+        .form-label { font-weight:600; color:#444; font-size:.85rem; }
+        .form-control,.form-select { border-radius:8px; border:1.5px solid #e0e0e0; font-size:.85rem; }
+        .form-control:focus,.form-select:focus { border-color:var(--ks-accent); box-shadow:0 0 0 3px rgba(233,69,96,.12); }
+        .btn-ks { background:var(--ks-accent); border:none; color:#fff; }
+        .btn-ks:hover { background:#c0392b; color:#fff; }
+        .salaire-field { display:none; }
+
+        /* HAMBURGER */
+        .hamburger-btn { display:none; position:fixed; top:12px; left:12px; z-index:200; background:var(--ks-accent); color:#fff; border:none; border-radius:10px; width:40px; height:40px; font-size:1.1rem; cursor:pointer; align-items:center; justify-content:center; }
+        .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:150; }
+        .sidebar-overlay.active { display:block; }
+        @media(max-width:768px) {
+            .hamburger-btn { display:flex; }
+            .sidebar { transform:translateX(-100%); transition:transform .3s; z-index:160; width:240px !important; }
+            .sidebar.open { transform:translateX(0); }
+            .main-content { margin-left:0 !important; padding:12px !important; padding-top:60px !important; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<div class="sidebar" id="sidebar">
+    <div class="brand">🎵 KS <span>Production</span><small>Techniciens</small></div>
+    <nav>
+        <div class="nav-section">Menu</div>
+        <a href="/dashboard"  class="nav-link"><i class="bi bi-speedometer2"></i> Dashboard</a>
+        <a href="/factures"   class="nav-link"><i class="bi bi-receipt"></i> Factures</a>
+        <a href="/proformas"  class="nav-link"><i class="bi bi-file-earmark-text"></i> Proformas</a>
+        <a href="/agenda"     class="nav-link"><i class="bi bi-calendar3"></i> Agenda</a>
+        <a href="/operations" class="nav-link"><i class="bi bi-arrow-left-right"></i> Opérations</a>
+        <a href="/clients"    class="nav-link"><i class="bi bi-people"></i> Clients</a>
+        <div class="nav-section">Production</div>
+        <a href="/techniciens"  class="nav-link active"><i class="bi bi-person-badge"></i> Techniciens</a>
+        <a href="/materiels"    class="nav-link"><i class="bi bi-box-seam"></i> Matériels</a>
+        <a href="/fournisseurs" class="nav-link"><i class="bi bi-shop"></i> Fournisseurs</a>
+        <a href="/paie"         class="nav-link"><i class="bi bi-cash-coin"></i> Paie & Primes</a>
+        <div class="nav-section">Finance</div>
+        <a href="/paiements"  class="nav-link"><i class="bi bi-clock-history"></i> Paiements</a>
+        <a href="/relances"   class="nav-link"><i class="bi bi-bell-fill"></i> Relances</a>
+        <a href="/rapport"    class="nav-link"><i class="bi bi-bar-chart-line"></i> Rapport</a>
+        {% if role == 'Administrateur' %}
+        <div class="nav-section">Admin</div>
+        <a href="/services"    class="nav-link"><i class="bi bi-grid"></i> Services</a>
+        <a href="/utilisateurs" class="nav-link"><i class="bi bi-person-gear"></i> Utilisateurs</a>
+        <a href="/parametres"  class="nav-link"><i class="bi bi-gear"></i> Paramètres</a>
+        <a href="/sauvegarde"  class="nav-link"><i class="bi bi-cloud-arrow-down"></i> Sauvegarde</a>
+        <a href="/reinitialiser" class="nav-link" style="color:#e74c3c;"><i class="bi bi-arrow-counterclockwise"></i> Réinitialiser</a>
+        {% endif %}
+    </nav>
+    <div class="sidebar-footer">
+        <a href="/profil"  class="nav-link"><i class="bi bi-person-circle"></i> Mon Profil</a>
+        <a href="/logout"  class="nav-link" style="color:#e74c3c;"><i class="bi bi-box-arrow-left"></i> Déconnexion</a>
+    </div>
+</div>
+
+<button class="hamburger-btn" onclick="document.getElementById('sidebar').classList.toggle('open');document.getElementById('overlay').classList.toggle('active');"><i class="bi bi-list"></i></button>
+<div class="sidebar-overlay" id="overlay" onclick="document.getElementById('sidebar').classList.remove('open');this.classList.remove('active');"></div>
+
+<!-- MAIN -->
+<div class="main-content">
+
+    <div class="topbar">
+        <div>
+            <h5><i class="bi bi-person-badge me-2" style="color:var(--ks-accent);"></i>Gestion des Techniciens</h5>
+            <small class="text-muted">{{ nb_total }} technicien(s) enregistré(s)</small>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            {% if role == 'Administrateur' %}
+            <button class="btn btn-sm btn-ks" data-bs-toggle="modal" data-bs-target="#modalNouveauTech">
+                <i class="bi bi-plus-lg me-1"></i>Nouveau technicien
+            </button>
+            {% endif %}
+            <!-- CLOCHE -->
+            <div class="position-relative">
+                <button id="btnCloche" onclick="toggleAlertes()" style="background:none;border:none;cursor:pointer;padding:4px 8px;">
+                    <i class="bi bi-bell-fill" style="font-size:1.25rem;color:#6b7280;" id="iconeCloche"></i>
+                    <span id="badgeAlertes" style="display:none;position:absolute;top:0px;right:2px;background:#e94560;color:#fff;border-radius:50%;width:17px;height:17px;font-size:.58rem;font-weight:700;align-items:center;justify-content:center;line-height:1;">0</span>
+                </button>
+                <div id="panneauAlertes" style="display:none;position:absolute;right:0;top:44px;width:340px;z-index:9999;background:#fff;border-radius:14px;box-shadow:0 8px 30px rgba(0,0,0,.15);overflow:hidden;border:1px solid #f0f0f0;">
+                    <div style="background:#1a1a2e;color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                        <span style="font-size:.82rem;font-weight:700;"><i class="bi bi-bell-fill me-2" style="color:#e94560;"></i>Alertes</span>
+                        <span id="nbAlertesHead" style="background:#e94560;color:#fff;border-radius:20px;padding:1px 8px;font-size:.7rem;font-weight:700;">0</span>
+                    </div>
+                    <div id="listeAlertes" style="max-height:360px;overflow-y:auto;padding:8px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show mb-3">
+        {{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    <!-- STATS -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#0984e3,#6c5ce7);">
+                <div><div class="lbl">Total équipe</div><div class="val">{{ nb_total }}</div></div>
+                <i class="bi bi-people-fill ico"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#00b894,#00cec9);">
+                <div><div class="lbl">Disponibles</div><div class="val">{{ nb_dispos }}</div></div>
+                <i class="bi bi-check-circle ico"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#6c5ce7,#a29bfe);">
+                <div><div class="lbl">Salariés</div><div class="val">{{ techniciens|selectattr('statut_emploi','equalto','Salarié')|list|length }}</div></div>
+                <i class="bi bi-person-badge ico"></i>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card" style="background:linear-gradient(135deg,#636e72,#b2bec3);">
+                <div><div class="lbl">Inactifs</div><div class="val">{{ nb_inactifs }}</div></div>
+                <i class="bi bi-pause-circle ico"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- GRILLE TECHNICIENS -->
+    <div class="row g-3">
+        {% for t in techniciens %}
+        {% set colors = ['#e94560','#0984e3','#00b894','#6c5ce7','#e17055','#fdcb6e','#00cec9','#a29bfe'] %}
+        {% set color = colors[loop.index0 % colors|length] %}
+        <div class="col-md-4 col-lg-3">
+            <div class="tech-card">
+                <div class="stripe {% if t.statut == 'Disponible' %}stripe-dispo{% else %}stripe-inactif{% endif %}"></div>
+                <div class="tech-avatar" style="background:linear-gradient(135deg,{{ color }},{{ color }}aa);">
+                    {{ t.nom[0] }}{% if t.nom.split()|length > 1 %}{{ t.nom.split()[-1][0] }}{% endif %}
+                </div>
+                <div class="tech-nom">{{ t.nom }}</div>
+                {% if t.role %}<div class="tech-role"><i class="bi bi-briefcase me-1"></i>{{ t.role }}</div>{% endif %}
+                {% if t.specialite %}<div class="tech-spec">🎛️ {{ t.specialite }}</div>{% endif %}
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px;">
+                    {% if t.statut == 'Disponible' %}
+                        <span class="badge-dispo">● Disponible</span>
+                    {% else %}
+                        <span class="badge-inactif">● Inactif</span>
+                    {% endif %}
+                    {% if t.statut_emploi == 'Salarié' %}
+                        <span class="badge-salarie">💼 Salarié</span>
+                    {% else %}
+                        <span class="badge-tempo">⏳ Temporaire</span>
+                    {% endif %}
+                </div>
+                {% if t.statut_emploi == 'Salarié' and t.salaire_base %}
+                    <div class="salaire-tag"><i class="bi bi-cash me-1"></i>{{ "{:,.0f}".format(t.salaire_base).replace(',', ' ') }} FCFA/mois</div>
+                {% endif %}
+                {% if t.telephone %}<div class="tech-info mt-2"><i class="bi bi-telephone-fill"></i> {{ t.telephone }}</div>{% endif %}
+                {% if t.email %}<div class="tech-info"><i class="bi bi-envelope-fill"></i> {{ t.email }}</div>{% endif %}
+                {% if t.notes %}<div class="tech-info" style="font-style:italic;color:#9ca3af;"><i class="bi bi-chat-left-text"></i> {{ t.notes[:50] }}{% if t.notes|length > 50 %}...{% endif %}</div>{% endif %}
+
+                {% if role == 'Administrateur' %}
+                <div class="tech-actions">
+                    <button class="btn-edit" data-bs-toggle="modal" data-bs-target="#modalEditTech"
+                        onclick="remplirEdit({{ t.id }}, '{{ t.nom }}', '{{ t.telephone or '' }}', '{{ t.email or '' }}', '{{ t.specialite or '' }}', '{{ t.role or '' }}', '{{ t.statut_emploi or 'Temporaire' }}', {{ t.salaire_base or 0 }}, '{{ t.statut }}', '{{ t.notes or '' }}')">
+                        <i class="bi bi-pencil"></i> Modifier
+                    </button>
+                    <form method="POST" action="/techniciens/toggle/{{ t.id }}" style="display:inline;">
+                        <button type="submit" class="{% if t.statut == 'Disponible' %}btn-toggle-on{% else %}btn-toggle-off{% endif %}">
+                            {% if t.statut == 'Disponible' %}⏸ Désactiver{% else %}▶ Activer{% endif %}
+                        </button>
+                    </form>
+                    <form method="POST" action="/techniciens/supprimer/{{ t.id }}" style="display:inline;"
+                          onsubmit="return confirm('Supprimer {{ t.nom }} ?')">
+                        <button type="submit" class="btn-del"><i class="bi bi-trash"></i></button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="empty-state">
+                <i class="bi bi-people" style="font-size:3rem;display:block;margin-bottom:12px;"></i>
+                Aucun technicien enregistré.<br>
+                <a href="#" data-bs-toggle="modal" data-bs-target="#modalNouveauTech" style="color:var(--ks-accent);">Ajouter le premier</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- ══ MODAL NOUVEAU TECHNICIEN ═══════════════════════════════ -->
+<div class="modal fade" id="modalNouveauTech" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Nouveau technicien</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+    </div>
+    <form method="POST" action="/techniciens/nouveau">
+    <div class="modal-body">
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Nom complet <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="nom" placeholder="Ex: KONDO Jean-Pierre" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Téléphone</label>
+                <input type="text" class="form-control" name="telephone" placeholder="+228 XX XX XX XX">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" name="email" placeholder="technicien@mail.com">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Rôle</label>
+                <select class="form-select" name="role">
+                    <option value="">— Sélectionner —</option>
+                    <option value="Ingénieur-son">🎚️ Ingénieur-son</option>
+                    <option value="Ingénieur-studio">🎙️ Ingénieur-studio</option>
+                    <option value="Technicien-son">🔊 Technicien-son</option>
+                    <option value="Assistant">🤝 Assistant</option>
+                    <option value="Secrétaire">📋 Secrétaire</option>
+                    <option value="Musicien">🎵 Musicien</option>
+                    <option value="Autre">⚡ Autre</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Spécialité</label>
+                <select class="form-select" name="specialite">
+                    <option value="">— Sélectionner —</option>
+                    <option value="Sonorisation">🔊 Sonorisation</option>
+                    <option value="Studio">🎙️ Studio</option>
+                    <option value="Régie Son">🎛️ Régie Son</option>
+                    <option value="Éclairage">💡 Éclairage</option>
+                    <option value="Transport & Matériel">🚚 Transport & Matériel</option>
+                    <option value="Polyvalent">⚡ Polyvalent</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Statut d'emploi</label>
+                <select class="form-select" name="statut_emploi" id="newStatutEmploi" onchange="toggleSalaireField('new', this.value)">
+                    <option value="Temporaire">⏳ Temporaire</option>
+                    <option value="Salarié">💼 Salarié</option>
+                </select>
+            </div>
+            <div class="col-md-6 salaire-field" id="newSalaireWrap">
+                <label class="form-label">Salaire de base (FCFA/mois)</label>
+                <input type="number" class="form-control" name="salaire_base" id="newSalaire" min="0" placeholder="0">
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" rows="2" placeholder="Compétences, disponibilités particulières..."></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-ks"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
+    </div>
+    </form>
+</div>
+</div>
+</div>
+
+<!-- ══ MODAL MODIFIER TECHNICIEN ════════════════════════════ -->
+<div class="modal fade" id="modalEditTech" tabindex="-1">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier le technicien</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+    </div>
+    <form method="POST" id="formEditTech">
+    <div class="modal-body">
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label">Nom complet <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" name="nom" id="editNom" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Téléphone</label>
+                <input type="text" class="form-control" name="telephone" id="editTel">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Email</label>
+                <input type="email" class="form-control" name="email" id="editEmail">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Rôle</label>
+                <select class="form-select" name="role" id="editRole">
+                    <option value="">— Sélectionner —</option>
+                    <option value="Ingénieur-son">🎚️ Ingénieur-son</option>
+                    <option value="Ingénieur-studio">🎙️ Ingénieur-studio</option>
+                    <option value="Technicien-son">🔊 Technicien-son</option>
+                    <option value="Assistant">🤝 Assistant</option>
+                    <option value="Secrétaire">📋 Secrétaire</option>
+                    <option value="Musicien">🎵 Musicien</option>
+                    <option value="Autre">⚡ Autre</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">Spécialité</label>
+                <select class="form-select" name="specialite" id="editSpec">
+                    <option value="">— Sélectionner —</option>
+                    <option value="Sonorisation">🔊 Sonorisation</option>
+                    <option value="Studio">🎙️ Studio</option>
+                    <option value="Régie Son">🎛️ Régie Son</option>
+                    <option value="Éclairage">💡 Éclairage</option>
+                    <option value="Transport & Matériel">🚚 Transport & Matériel</option>
+                    <option value="Polyvalent">⚡ Polyvalent</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Statut d'emploi</label>
+                <select class="form-select" name="statut_emploi" id="editStatutEmploi" onchange="toggleSalaireField('edit', this.value)">
+                    <option value="Temporaire">⏳ Temporaire</option>
+                    <option value="Salarié">💼 Salarié</option>
+                </select>
+            </div>
+            <div class="col-md-4 salaire-field" id="editSalaireWrap">
+                <label class="form-label">Salaire de base (FCFA/mois)</label>
+                <input type="number" class="form-control" name="salaire_base" id="editSalaire" min="0">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">Statut activité</label>
+                <select class="form-select" name="statut" id="editStatut">
+                    <option value="Disponible">● Disponible</option>
+                    <option value="Inactif">● Inactif</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label">Notes</label>
+                <textarea class="form-control" name="notes" id="editNotes" rows="2"></textarea>
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="submit" class="btn btn-ks"><i class="bi bi-check-lg me-1"></i>Enregistrer</button>
+    </div>
+    </form>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Afficher/masquer le champ salaire selon statut emploi
+function toggleSalaireField(prefix, val) {
+    const wrap = document.getElementById(prefix + 'SalaireWrap');
+    if (wrap) wrap.style.display = val === 'Salarié' ? 'block' : 'none';
+}
+
+// Remplir le modal modifier
+function remplirEdit(id, nom, tel, email, spec, role, statutEmploi, salaire, statut, notes) {
+    document.getElementById('formEditTech').action = '/techniciens/modifier/' + id;
+    document.getElementById('editNom').value           = nom;
+    document.getElementById('editTel').value           = tel;
+    document.getElementById('editEmail').value         = email;
+    document.getElementById('editSpec').value          = spec;
+    document.getElementById('editRole').value          = role;
+    document.getElementById('editStatutEmploi').value  = statutEmploi;
+    document.getElementById('editSalaire').value       = salaire;
+    document.getElementById('editStatut').value        = statut;
+    document.getElementById('editNotes').value         = notes;
+    toggleSalaireField('edit', statutEmploi);
+}
+
+// Alertes
+let alertesOuvert = false;
+function toggleAlertes() {
+    const p = document.getElementById('panneauAlertes');
+    alertesOuvert = !alertesOuvert;
+    p.style.display = alertesOuvert ? 'block' : 'none';
+    if (alertesOuvert) chargerAlertes();
+}
+document.addEventListener('click', function(e) {
+    const btn = document.getElementById('btnCloche');
+    const p   = document.getElementById('panneauAlertes');
+    if (btn && p && !btn.contains(e.target) && !p.contains(e.target)) {
+        p.style.display = 'none'; alertesOuvert = false;
+    }
+});
+function chargerAlertes() {
+    fetch('/api/alertes').then(r => r.json()).then(data => {
+        const liste = document.getElementById('listeAlertes');
+        const badge = document.getElementById('badgeAlertes');
+        const nb    = data.length;
+        document.getElementById('nbAlertesHead').textContent = nb;
+        if (nb > 0) { badge.textContent = nb > 9 ? '9+' : nb; badge.style.display = 'flex'; document.getElementById('iconeCloche').style.color = '#e94560'; }
+        else { badge.style.display = 'none'; document.getElementById('iconeCloche').style.color = '#6b7280'; }
+        liste.innerHTML = data.length === 0
+            ? '<div style="text-align:center;padding:20px;color:#9ca3af;font-size:.8rem;">Aucune alerte</div>'
+            : data.map(a => `<div style="padding:10px 12px;border-radius:10px;margin-bottom:6px;border-left:4px solid ${a.niveau=='danger'?'#e94560':'#f59e0b'};background:${a.niveau=='danger'?'#fff5f7':'#fffbeb'};cursor:pointer;" onclick="window.location='/agenda'">
+                <div style="font-size:.8rem;font-weight:700;color:#1a1a2e;">${a.titre}</div>
+                <div style="font-size:.7rem;color:#6b7280;">${a.date}${a.client?' · '+a.client:''}</div>
+            </div>`).join('');
+    }).catch(() => {});
+}
+document.addEventListener('DOMContentLoaded', function() {
+    fetch('/api/alertes').then(r => r.json()).then(data => {
+        const badge = document.getElementById('badgeAlertes');
+        if (data.length > 0) { badge.textContent = data.length > 9 ? '9+' : data.length; badge.style.display = 'flex'; document.getElementById('iconeCloche').style.color = '#e94560'; }
+    }).catch(() => {});
+});
+</script>
+</body>
+</html>
