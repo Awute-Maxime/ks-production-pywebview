@@ -1817,6 +1817,76 @@ def exporter_donnees():
             'cree_par'       : p.cree_par,
         })
 
+    # Techniciens
+    data['techniciens'] = []
+    for t in Technicien.query.all():
+        data['techniciens'].append({
+            'nom'           : t.nom,
+            'telephone'     : t.telephone,
+            'email'         : t.email,
+            'specialite'    : t.specialite,
+            'role'          : t.role,
+            'statut'        : t.statut,
+            'statut_emploi' : t.statut_emploi,
+            'salaire_base'  : t.salaire_base,
+            'notes'         : t.notes,
+        })
+
+    # Fournisseurs
+    data['fournisseurs'] = []
+    for f in Fournisseur.query.all():
+        data['fournisseurs'].append({
+            'nom'      : f.nom,
+            'telephone': f.telephone,
+            'email'    : f.email,
+            'adresse'  : f.adresse,
+            'notes'    : f.notes,
+        })
+
+    # Matériels
+    data['materiels'] = []
+    for m in Materiel.query.all():
+        fournisseur = Fournisseur.query.get(m.fournisseur_id) if m.fournisseur_id else None
+        data['materiels'].append({
+            'nom'           : m.nom,
+            'categorie'     : m.categorie,
+            'marque'        : m.marque,
+            'reference'     : m.reference,
+            'provenance'    : m.provenance,
+            'quantite'      : m.quantite,
+            'prix_achat'    : m.prix_achat,
+            'notes'         : m.notes,
+            'fournisseur'   : fournisseur.nom if fournisseur else None,
+        })
+
+    # Prestations (Evenements)
+    data['prestations'] = []
+    for e in Evenement.query.all():
+        data['prestations'].append({
+            'titre'      : e.titre,
+            'date'       : e.date.strftime('%Y-%m-%d') if e.date else None,
+            'heure_debut': e.heure_debut,
+            'heure_fin'  : e.heure_fin,
+            'nom_client' : e.nom_client,
+            'lieu'       : e.lieu,
+            'service'    : e.service,
+            'section'    : e.section,
+            'statut'     : e.statut,
+            'notes'      : e.notes,
+        })
+
+    # Dépenses prestations
+    data['depenses'] = []
+    for d in DepensePrestation.query.all():
+        data['depenses'].append({
+            'type_depense' : d.type_depense,
+            'description'  : d.description,
+            'beneficiaire' : d.beneficiaire,
+            'montant'      : d.montant,
+            'statut'       : d.statut,
+            'date_paiement': d.date_paiement.strftime('%Y-%m-%d') if d.date_paiement else None,
+        })
+
     # ── Envoyer le fichier JSON ──
     import json as json_module
     contenu = json_module.dumps(data, ensure_ascii=False, indent=2)
