@@ -110,144 +110,13 @@ def initialiser_base():
             db.session.add(s)
         db.session.commit()
 
-    # ── FACTURES DE TEST ──────────────────────────────────────────
-    if Facture.query.filter(Facture.type_operation != 'Proforma').count() == 0:
-        from datetime import timedelta
-        auj = datetime.now()
-        factures_test = [
-            Facture(numero='FKSP-01032026-001', nom_client='AWUTE Kossi',
-                service='Enregistrement Studio', montant_ttc=41300,
-                mode_paiement='Espece', etat_paiement='Payer',
-                type_operation='Recettes', section='Studio',
-                cree_par='admin', montant_paye=41300, reste_du=0,
-                date=auj - timedelta(days=40)),
-            Facture(numero='FKSP-05032026-002', nom_client='KONDO KOFFI',
-                service='Sonorisation Mariage', montant_ttc=236000,
-                mode_paiement='Virement', etat_paiement='Payer',
-                type_operation='Recettes', section='Sonorisation',
-                cree_par='admin', montant_paye=236000, reste_du=0,
-                date=auj - timedelta(days=35)),
-            Facture(numero='FKSP-10032026-003', nom_client='La Voie au Togo',
-                service='Sonorisation Concert', montant_ttc=354000,
-                mode_paiement='Cheque', etat_paiement='Partiel',
-                type_operation='Recettes', section='Sonorisation',
-                cree_par='admin', montant_paye=150000, reste_du=204000,
-                date=auj - timedelta(days=20)),
-            Facture(numero='FKSP-08032026-004', nom_client='La Voie au Togo',
-                service='Location Matériel', montant_ttc=59000,
-                mode_paiement='Espece', etat_paiement='Non Payer',
-                type_operation='Recettes', section='Sonorisation',
-                cree_par='admin', montant_paye=0, reste_du=59000,
-                date=auj - timedelta(days=32)),
-            Facture(numero='FKSP-22032026-005', nom_client='KONDO KOFFI',
-                service='Mixage', montant_ttc=29500,
-                mode_paiement='Espece', etat_paiement='Non Payer',
-                type_operation='Recettes', section='Studio',
-                cree_par='caissier', montant_paye=0, reste_du=29500,
-                date=auj - timedelta(days=18)),
-            Facture(numero='FKSP-01042026-006', nom_client='AWUTE Kossi',
-                service='Mastering', montant_ttc=35400,
-                mode_paiement='Mobile Money', etat_paiement='Payer',
-                type_operation='Recettes', section='Studio',
-                cree_par='admin', montant_paye=35400, reste_du=0,
-                date=auj - timedelta(days=9)),
-        ]
-        for f in factures_test:
-            db.session.add(f)
-        db.session.commit()
-        f_partielle = Facture.query.filter_by(numero='FKSP-10032026-003').first()
-        if f_partielle:
-            db.session.add(LigneFacture(facture_id=f_partielle.id,
-                service='Sonorisation Concert', prix_unitaire=300000,
-                quantite=1, montant_ht=300000, montant_ttc=354000))
-            db.session.add(Paiement(numero='PAY-001', facture_id=f_partielle.id,
-                n_facture=f_partielle.numero, nom_client='La Voie au Togo',
-                montant_facture=354000, montant_paye=150000, reste_du=204000,
-                mode_paiement='Cheque', etat_facture='Partiel',
-                notes='Avance versée', cree_par='admin'))
-            db.session.commit()
+    # Données de test supprimées (appli de production)
 
-    # ── PROFORMAS DE TEST ─────────────────────────────────────────
-    if Facture.query.filter_by(type_operation='Proforma').count() == 0:
-        from datetime import timedelta
-        auj = datetime.now()
-        for p in [
-            Facture(numero='PROF-01042026-001', nom_client='KONDO KOFFI',
-                service='Sonorisation Événement', montant_ttc=177000,
-                mode_paiement='Espece', etat_paiement='Non Payer',
-                type_operation='Proforma', section='Sonorisation',
-                cree_par='admin', montant_paye=0, reste_du=177000,
-                date=auj - timedelta(days=5)),
-            Facture(numero='PROF-05042026-002', nom_client='AWUTE Kossi',
-                service='Enregistrement Studio + Mixage', montant_ttc=70800,
-                mode_paiement='Virement', etat_paiement='Non Payer',
-                type_operation='Proforma', section='Studio',
-                cree_par='admin', montant_paye=0, reste_du=70800,
-                date=auj - timedelta(days=2)),
-        ]:
-            db.session.add(p)
-        db.session.commit()
-
-    # ── ÉVÉNEMENTS AGENDA DE TEST ─────────────────────────────────
-    if Evenement.query.count() == 0:
-        from datetime import date as date_type
-        f1 = Facture.query.filter_by(numero='FKSP-05032026-002').first()
-        for e in [
-            Evenement(titre='Sonorisation Mariage KONDO',
-                date=date_type(2026, 4, 22), heure_debut='09:00', heure_fin='20:00',
-                nom_client='KONDO KOFFI', service='Sonorisation Mariage',
-                section='Sonorisation', lieu='Salle des fêtes, Lomé',
-                notes='Prévoir 2 enceintes + micro HF', statut='Confirmé',
-                cree_par='admin', facture_id=f1.id if f1 else None),
-            Evenement(titre='Enregistrement Studio - AWUTE',
-                date=date_type(2026, 4, 25), heure_debut='10:00', heure_fin='14:00',
-                nom_client='AWUTE Kossi', service='Enregistrement Studio',
-                section='Studio', lieu='KS Production Studio',
-                notes='Session de 4h - album solo', statut='Confirmé', cree_par='admin'),
-            Evenement(titre='Concert La Voie au Togo',
-                date=date_type(2026, 4, 29), heure_debut='18:00', heure_fin='23:00',
-                nom_client='La Voie au Togo', service='Sonorisation Concert',
-                section='Sonorisation', lieu='Palais des Congrès, Lomé',
-                notes='Grand concert - vérifier matériel la veille',
-                statut='Tentative', cree_par='admin'),
-            Evenement(titre='Mixage album - KONDO KOFFI',
-                date=date_type(2026, 4, 30), heure_debut='14:00', heure_fin='18:00',
-                nom_client='KONDO KOFFI', service='Mixage',
-                section='Studio', lieu='KS Production Studio',
-                notes='Suite session du 25 avril', statut='Confirmé', cree_par='caissier'),
-        ]:
-            db.session.add(e)
-        db.session.commit()
-
-    # ── TECHNICIENS DE TEST ───────────────────────────────────────
-    if Technicien.query.count() == 0:
-        for t in [
-            Technicien(nom='MENSAH Kodjo',   telephone='91234567', specialite='Sonorisation', statut='Disponible'),
-            Technicien(nom='AGBE Komlan',    telephone='93456789', specialite='Studio',       statut='Disponible'),
-            Technicien(nom='DOSSOU Afi',     telephone='95678901', specialite='Régie',        statut='Disponible'),
-            Technicien(nom='KPODO Edem',     telephone='97890123', specialite='Sonorisation', statut='Inactif'),
-        ]:
-            db.session.add(t)
-        db.session.commit()
-        evt1  = Evenement.query.filter_by(titre='Sonorisation Mariage KONDO').first()
-        tech1 = Technicien.query.filter_by(nom='MENSAH Kodjo').first()
-        tech3 = Technicien.query.filter_by(nom='DOSSOU Afi').first()
-        if evt1 and tech1:
-            db.session.add(EvenementTechnicien(evenement_id=evt1.id, technicien_id=tech1.id, role='Chef de son'))
-        if evt1 and tech3:
-            db.session.add(EvenementTechnicien(evenement_id=evt1.id, technicien_id=tech3.id, role='Assistant'))
-        db.session.commit()
-
-# ================================================================
-# AUTH
-# ================================================================
 
 def generer_numero_facture(prefix='FKSP'):
-    """Génère un numéro unique FKSP-DDMMYYYY-NNN, séquence réinitialisée chaque année."""
-    now    = datetime.now()
-    date_str = now.strftime('%d%m%Y')   # ex: 09042026
-    annee    = now.strftime('%Y')        # ex: 2026
-    # Compter toutes les factures de l'année courante (pas juste du jour)
+    now      = datetime.now()
+    date_str = now.strftime('%d%m%Y')
+    annee    = now.strftime('%Y')
     nb = Facture.query.filter(
         Facture.numero.like(f'{prefix}-____{annee}-%')
     ).count() + 1
@@ -257,9 +126,11 @@ def generer_numero_facture(prefix='FKSP'):
         numero = f"{prefix}-{date_str}-{nb:03d}"
     return numero
 
+
 @app.route('/')
 def accueil():
     return redirect(url_for('login'))
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -277,14 +148,12 @@ def login():
     params = Parametres.query.first()
     return render_template('login.html', erreur=erreur, params=params)
 
+
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ================================================================
-# ROUTE DASHBOARD AVEC ALERTES — Remplace l'ancienne route /dashboard
-# ================================================================
 
 @app.route('/dashboard')
 def dashboard():
@@ -295,211 +164,192 @@ def dashboard():
     from datetime import datetime, timedelta
     import json
 
-    # ── STATS GÉNÉRALES ──
-    total_recettes = db.session.query(func.sum(Operation.montant_ttc))\
-        .filter_by(type_operation='Recettes').scalar() or 0
-    total_depenses = db.session.query(func.sum(Operation.montant_ttc))\
-        .filter_by(type_operation='Depenses').scalar() or 0
+    today = datetime.now().date()
+
+    total_recettes = db.session.query(func.sum(Operation.montant_ttc))        .filter_by(type_operation='Recettes').scalar() or 0
+    total_depenses = db.session.query(func.sum(Operation.montant_ttc))        .filter_by(type_operation='Depenses').scalar() or 0
     solde_net      = total_recettes - total_depenses
-    total_impayes  = db.session.query(func.sum(Facture.reste_du))\
-        .filter(Facture.type_operation != 'Proforma').scalar() or 0
+    total_impayes  = db.session.query(func.sum(Facture.reste_du))        .filter(Facture.etat_paiement.in_(['Non Payer','Partiel']))        .filter(Facture.type_operation != 'Proforma').scalar() or 0
 
     nb_factures   = Facture.query.filter(Facture.type_operation != 'Proforma').count()
     nb_payees     = Facture.query.filter_by(etat_paiement='Payer').filter(Facture.type_operation != 'Proforma').count()
     nb_impayes    = Facture.query.filter_by(etat_paiement='Non Payer').filter(Facture.type_operation != 'Proforma').count()
     nb_partielles = Facture.query.filter_by(etat_paiement='Partiel').filter(Facture.type_operation != 'Proforma').count()
-    taux_recouvrement = round((nb_payees / nb_factures * 100) if nb_factures > 0 else 0, 1)
+    taux_recouvrement = round(nb_payees / nb_factures * 100) if nb_factures > 0 else 0
 
-    # ── ALERTES IMPAYÉS ──
-    today = datetime.now()
-
-    # Factures impayées depuis plus de 30 jours
-    seuil_30j  = today - timedelta(days=30)
-    seuil_15j  = today - timedelta(days=15)
-    seuil_7j   = today - timedelta(days=7)
-
-    factures_impayees_30j = Facture.query.filter(
-        Facture.etat_paiement.in_(['Non Payer', 'Partiel']),
-        Facture.type_operation != 'Proforma',
-        Facture.date <= seuil_30j
-    ).order_by(Facture.date.asc()).all()
-
-    factures_impayees_15j = Facture.query.filter(
-        Facture.etat_paiement.in_(['Non Payer', 'Partiel']),
-        Facture.type_operation != 'Proforma',
-        Facture.date <= seuil_15j,
-        Facture.date > seuil_30j
-    ).order_by(Facture.date.asc()).all()
-
-    factures_impayees_7j = Facture.query.filter(
-        Facture.etat_paiement.in_(['Non Payer', 'Partiel']),
-        Facture.type_operation != 'Proforma',
-        Facture.date <= seuil_7j,
-        Facture.date > seuil_15j
-    ).order_by(Facture.date.asc()).all()
-
-    # Montant total en retard
-    montant_retard_30j = sum(f.reste_du for f in factures_impayees_30j)
-    montant_retard_15j = sum(f.reste_du for f in factures_impayees_15j)
-
-    # Construire les alertes
-    alertes = []
-
-    # Alerte solde négatif
-    if solde_net < 0:
-        alertes.append({
-            'type'   : 'danger',
-            'icone'  : 'bi-exclamation-triangle-fill',
-            'titre'  : '⚠️ Solde négatif !',
-            'message': f'Votre solde est négatif : {solde_net:,.0f} FCFA. Les dépenses dépassent les recettes.'.replace(',', ' '),
-            'lien'   : '/rapport',
-            'lien_txt': 'Voir le rapport',
-        })
-
-    # Alerte factures en retard > 30 jours
-    if factures_impayees_30j:
-        alertes.append({
-            'type'   : 'danger',
-            'icone'  : 'bi-clock-history',
-            'titre'  : f'{len(factures_impayees_30j)} facture(s) impayée(s) depuis plus de 30 jours',
-            'message': f'Montant total en retard : {montant_retard_30j:,.0f} FCFA'.replace(',', ' '),
-            'lien'   : '/factures?etat=Non+Payer',
-            'lien_txt': 'Voir les factures',
-            'factures': factures_impayees_30j[:3],  # Max 3 exemples
-        })
-
-    # Alerte factures en retard 15-30 jours
-    if factures_impayees_15j:
-        alertes.append({
-            'type'   : 'warning',
-            'icone'  : 'bi-exclamation-circle-fill',
-            'titre'  : f'{len(factures_impayees_15j)} facture(s) impayée(s) depuis 15 à 30 jours',
-            'message': f'Montant : {montant_retard_15j:,.0f} FCFA — Pensez à relancer ces clients.'.replace(',', ' '),
-            'lien'   : '/factures?etat=Non+Payer',
-            'lien_txt': 'Voir les factures',
-        })
-
-    # Alerte factures en retard 7-15 jours
-    if factures_impayees_7j:
-        alertes.append({
-            'type'   : 'info',
-            'icone'  : 'bi-info-circle-fill',
-            'titre'  : f'{len(factures_impayees_7j)} facture(s) impayée(s) depuis 7 à 15 jours',
-            'message': 'Ces factures arrivent bientôt à échéance.',
-            'lien'   : '/factures?etat=Non+Payer',
-            'lien_txt': 'Voir les factures',
-        })
-
-    # ── RÉPARTITION PAR SECTION ──
-    sections_data = db.session.query(
-        Operation.section,
-        func.sum(Operation.montant_ttc)
-    ).filter_by(type_operation='Recettes')\
-     .group_by(Operation.section).all()
-
-    sections_labels = [s[0] or 'Autre' for s in sections_data]
-    sections_values = [float(s[1]) for s in sections_data]
-
-    # ── ÉVOLUTION MENSUELLE (6 derniers mois) ──
-    mois_labels, mois_recettes, mois_depenses = [], [], []
+    # Graphiques mensuels
+    mois_labels = []; mois_recettes = []; mois_depenses = []
     for i in range(5, -1, -1):
-        d = today - timedelta(days=i * 30)
-        mois_labels.append(d.strftime('%b %y'))
-        rec = db.session.query(func.sum(Operation.montant_ttc)).filter(
-            Operation.type_operation == 'Recettes',
-            extract('month', Operation.date) == d.month,
-            extract('year',  Operation.date) == d.year
-        ).scalar() or 0
-        dep = db.session.query(func.sum(Operation.montant_ttc)).filter(
-            Operation.type_operation == 'Depenses',
-            extract('month', Operation.date) == d.month,
-            extract('year',  Operation.date) == d.year
-        ).scalar() or 0
+        d = datetime.now() - timedelta(days=30*i)
+        m, a = d.month, d.year
+        rec = db.session.query(func.sum(Operation.montant_ttc))            .filter(extract('month', Operation.date)==m, extract('year', Operation.date)==a)            .filter_by(type_operation='Recettes').scalar() or 0
+        dep = db.session.query(func.sum(Operation.montant_ttc))            .filter(extract('month', Operation.date)==m, extract('year', Operation.date)==a)            .filter_by(type_operation='Depenses').scalar() or 0
+        mois_labels.append(d.strftime('%b'))
         mois_recettes.append(float(rec))
         mois_depenses.append(float(dep))
 
-    # ── TOP 5 CLIENTS ──
-    top_clients = db.session.query(
-        Operation.nom_client,
-        func.sum(Operation.montant_ttc).label('total')
-    ).filter_by(type_operation='Recettes')\
-     .group_by(Operation.nom_client)\
-     .order_by(func.sum(Operation.montant_ttc).desc())\
-     .limit(5).all()
+    # Sections
+    sections = db.session.query(Operation.section, func.sum(Operation.montant_ttc))        .filter_by(type_operation='Recettes').group_by(Operation.section).all()
+    sections_labels = [s[0] or 'Autre' for s in sections]
+    sections_values = [float(s[1]) for s in sections]
 
-    top_clients_labels = [c[0] or 'Inconnu' for c in top_clients]
-    top_clients_values = [float(c[1]) for c in top_clients]
+    # Top clients
+    top_clients = db.session.query(Facture.nom_client, func.sum(Facture.montant_ttc))        .filter(Facture.type_operation != 'Proforma')        .group_by(Facture.nom_client).order_by(func.sum(Facture.montant_ttc).desc()).limit(5).all()
+    top_clients_labels = [t[0] for t in top_clients]
+    top_clients_values = [float(t[1]) for t in top_clients]
 
-    # ── RÉPARTITION FACTURES ──
-    factures_labels = ['Payées', 'Non Payées', 'Partielles']
-    factures_values = [
-        Facture.query.filter_by(etat_paiement='Payer').filter(Facture.type_operation != 'Proforma').count(),
-        Facture.query.filter_by(etat_paiement='Non Payer').filter(Facture.type_operation != 'Proforma').count(),
-        Facture.query.filter_by(etat_paiement='Partiel').filter(Facture.type_operation != 'Proforma').count(),
-    ]
+    # Statut factures
+    factures_labels = ['Payées', 'Impayées', 'Partielles']
+    factures_values = [nb_payees, nb_impayes, nb_partielles]
 
-    # ── 8 DERNIÈRES OPÉRATIONS ──
-    dernieres_ops = Operation.query.order_by(Operation.date.desc()).limit(8).all()
+    # Dernières opérations
+    dernieres_ops = Operation.query.order_by(Operation.date.desc()).limit(7).all()
+
+    # Alertes
+    alertes = []
+    maintenant = datetime.now()
+    for f in Facture.query.filter(Facture.etat_paiement.in_(['Non Payer','Partiel']))                          .filter(Facture.type_operation != 'Proforma').all():
+        jours = (maintenant - f.date).days if f.date else 0
+        if jours >= 7:
+            niveau = 'danger' if jours >= 30 else 'warning'
+            alertes.append({
+                'titre': f'Facture impayée — {f.nom_client}',
+                'message': f'{f.numero} — {f.reste_du:,.0f} FCFA — {jours}j de retard',
+                'type': niveau, 'icone': 'bi-exclamation-triangle-fill',
+                'lien': f'/factures/apercu/{f.id}', 'lien_txt': 'Voir facture',
+                'date': f.date.strftime('%d/%m/%Y') if f.date else '',
+                'client': f.nom_client, 'niveau': niveau,
+            })
+
+    # Stats production
+    from datetime import date as date_cls
+    import calendar as cal
+    mois_actuel  = today.month
+    annee_actuel = today.year
+    debut_mois   = date_cls(annee_actuel, mois_actuel, 1)
+    fin_mois     = date_cls(annee_actuel, mois_actuel, cal.monthrange(annee_actuel, mois_actuel)[1])
+
+    prestations_mois = Evenement.query.filter(
+        Evenement.date >= debut_mois,
+        Evenement.date <= fin_mois,
+        Evenement.statut != 'Terminée'
+    ).order_by(Evenement.date).all()
+
+    nb_techs_total   = Technicien.query.count()
+    nb_techs_dispos  = Technicien.query.filter_by(statut='Disponible').count()
+    nb_techs_salarie = Technicien.query.filter_by(statut_emploi='Salarié').count()
+    nb_techs_tempo   = Technicien.query.filter_by(statut_emploi='Temporaire').count()
+
+    primes_attente   = DepensePrestation.query.filter_by(statut='En attente').all()
+    total_primes_att = sum(p.montant for p in primes_attente)
+    for p in primes_attente:
+        p._evt = Evenement.query.get(p.evenement_id)
+
+    nb_materiels    = Materiel.query.count()
+    nb_fournisseurs = Fournisseur.query.count()
+    archives        = PrestationArchivee.query.all()
+    benefice_archives = sum(a.benefice_net for a in archives)
 
     return render_template('dashboard.html',
-        username      = session['username'],
-        role          = session['role'],
-        date_maj      = datetime.now().strftime('%d/%m/%Y %H:%M'),
-
-        # Stats
-        total_recettes    = f"{total_recettes:,.0f}".replace(',', ' '),
-        total_depenses    = f"{total_depenses:,.0f}".replace(',', ' '),
-        solde_net         = f"{solde_net:,.0f}".replace(',', ' '),
-        solde_positif     = solde_net >= 0,
-        total_impayes     = f"{total_impayes:,.0f}".replace(',', ' '),
-        nb_factures       = nb_factures,
-        nb_payees         = nb_payees,
-        nb_impayes        = nb_impayes,
-        nb_partielles     = nb_partielles,
-        taux_recouvrement = taux_recouvrement,
-
-        # Alertes
-        alertes = alertes,
-
-        # Graphiques
-        sections_labels    = json.dumps(sections_labels),
-        sections_values    = json.dumps(sections_values),
-        mois_labels        = json.dumps(mois_labels),
-        mois_recettes      = json.dumps(mois_recettes),
-        mois_depenses      = json.dumps(mois_depenses),
-        top_clients_labels = json.dumps(top_clients_labels),
-        top_clients_values = json.dumps(top_clients_values),
-        factures_labels    = json.dumps(factures_labels),
-        factures_values    = json.dumps(factures_values),
-
-        # Dernières opérations
-        dernieres_ops = dernieres_ops,
+        username=session['username'], role=session['role'],
+        date_maj=datetime.now().strftime('%d/%m/%Y %H:%M'),
+        total_recettes=f"{total_recettes:,.0f}".replace(',', ' '),
+        total_depenses=f"{total_depenses:,.0f}".replace(',', ' '),
+        solde_net=f"{solde_net:,.0f}".replace(',', ' '),
+        solde_positif=solde_net >= 0,
+        total_impayes=f"{total_impayes:,.0f}".replace(',', ' '),
+        nb_factures=nb_factures, nb_payees=nb_payees,
+        nb_impayes=nb_impayes, nb_partielles=nb_partielles,
+        taux_recouvrement=taux_recouvrement,
+        prestations_mois=prestations_mois, nb_presta_mois=len(prestations_mois),
+        nb_presta_confirmees=sum(1 for p in prestations_mois if p.statut=='Confirmé'),
+        nb_presta_tentative=sum(1 for p in prestations_mois if p.statut=='Tentative'),
+        nb_techs_total=nb_techs_total, nb_techs_dispos=nb_techs_dispos,
+        nb_techs_salarie=nb_techs_salarie, nb_techs_tempo=nb_techs_tempo,
+        primes_attente=primes_attente[:3], nb_primes_attente=len(primes_attente),
+        total_primes_att=f"{total_primes_att:,.0f}".replace(',', ' '),
+        nb_materiels=nb_materiels, nb_fournisseurs=nb_fournisseurs,
+        nb_archives=len(archives),
+        benefice_archives=f"{benefice_archives:,.0f}".replace(',', ' '),
+        alertes=alertes,
+        sections_labels=json.dumps(sections_labels),
+        sections_values=json.dumps(sections_values),
+        mois_labels=json.dumps(mois_labels),
+        mois_recettes=json.dumps(mois_recettes),
+        mois_depenses=json.dumps(mois_depenses),
+        top_clients_labels=json.dumps(top_clients_labels),
+        top_clients_values=json.dumps(top_clients_values),
+        factures_labels=json.dumps(factures_labels),
+        factures_values=json.dumps(factures_values),
+        dernieres_ops=dernieres_ops,
     )
 
-# ================================================================
-# FACTURES
-# ================================================================
+
+@app.route('/api/alertes')
+def api_alertes():
+    if 'username' not in session:
+        return jsonify([])
+    from datetime import date, timedelta
+    maintenant = datetime.now()
+    aujourd_hui = date.today()
+    dans_7j     = aujourd_hui + timedelta(days=7)
+    alertes = []
+
+    # Alertes factures impayées
+    for f in Facture.query.filter(Facture.etat_paiement.in_(['Non Payer','Partiel']))                          .filter(Facture.type_operation != 'Proforma').all():
+        jours = (maintenant - f.date).days if f.date else 0
+        if jours >= 7:
+            niveau = 'danger' if jours >= 30 else 'warning'
+            alertes.append({
+                'id': f.id, 'titre': f'Facture impayée — {f.nom_client}',
+                'message': f'{f.numero} — {f.reste_du:,.0f} FCFA — {jours}j de retard',
+                'type': niveau, 'niveau': niveau,
+                'icone': 'bi-exclamation-triangle-fill',
+                'lien': f'/factures/apercu/{f.id}', 'lien_txt': 'Voir',
+                'date': f.date.strftime('%d/%m/%Y') if f.date else '',
+                'client': f.nom_client,
+            })
+
+    # Alertes événements à venir (7 jours)
+    for ev in Evenement.query.filter(
+        Evenement.date >= aujourd_hui,
+        Evenement.date <= dans_7j,
+        Evenement.statut == 'Confirmé'
+    ).order_by(Evenement.date).all():
+        delta = (ev.date - aujourd_hui).days
+        if delta == 0:   niveau='danger';  label="Aujourd'hui !"
+        elif delta == 1: niveau='danger';  label='Demain (J-1)'
+        elif delta <= 3: niveau='warning'; label=f'Dans {delta} jours (J-{delta})'
+        else:            niveau='info';    label=f'Dans {delta} jours (J-{delta})'
+        alertes.append({
+            'id': ev.id, 'titre': ev.titre,
+            'message': f'{label} · {ev.nom_client or ""} · {ev.lieu or ""}',
+            'type': niveau, 'niveau': niveau,
+            'icone': 'bi-calendar-event-fill',
+            'lien': '/agenda', 'lien_txt': 'Voir agenda',
+            'date': ev.date.strftime('%d/%m/%Y'),
+            'client': ev.nom_client or '',
+        })
+
+    return jsonify(alertes)
+
+
 @app.route('/factures')
 def liste_factures():
     if 'username' not in session:
         return redirect(url_for('login'))
 
-    from sqlalchemy import extract
+    from sqlalchemy import func
     filtre_etat    = request.args.get('etat', '')
     filtre_section = request.args.get('section', '')
     filtre_mois    = request.args.get('mois', '')
     filtre_client  = request.args.get('client', '')
 
-    query = Facture.query
-    if filtre_etat:    query = query.filter_by(etat_paiement=filtre_etat)
-    if filtre_section: query = query.filter_by(section=filtre_section)
-    if filtre_client:  query = query.filter(Facture.nom_client.ilike(f'%{filtre_client}%'))
-    if filtre_mois:
-        annee, mois = filtre_mois.split('-')
-        query = query.filter(extract('year', Facture.date) == int(annee), extract('month', Facture.date) == int(mois))
-
-    factures  = query.order_by(Facture.date.desc()).all()
-    toutes    = Facture.query.all()
+    toutes = Facture.query.filter(Facture.type_operation != 'Proforma')                          .order_by(Facture.date.desc()).all()
+    factures = toutes
+    if filtre_etat:    factures = [f for f in factures if f.etat_paiement == filtre_etat]
+    if filtre_section: factures = [f for f in factures if f.section == filtre_section]
+    if filtre_client:  factures = [f for f in factures if filtre_client.lower() in (f.nom_client or '').lower()]
     total_ttc = sum(f.montant_ttc for f in factures)
 
     return render_template('factures.html',
@@ -511,8 +361,10 @@ def liste_factures():
         total_ttc=f"{total_ttc:,.0f}".replace(',', ' '),
         filtre_etat=filtre_etat, filtre_section=filtre_section,
         filtre_mois=filtre_mois, filtre_client=filtre_client,
+        clients=Client.query.all(),
+        services_list=Service.query.filter_by(actif=True).order_by(Service.section, Service.libelle).all(),
+        numero_auto=generer_numero_facture('FKSP'),
     )
-
 
 @app.route('/factures/nouvelle', methods=['GET', 'POST'])
 def nouvelle_facture():
@@ -580,6 +432,10 @@ def nouvelle_facture():
         ))
         db.session.commit()
         flash(f'Facture {numero} enregistrée avec succès !', 'success')
+        if request.args.get('popup') == '1':
+            return render_template('fermer_fenetre.html',
+                message=f'Facture {numero} créée avec succès !',
+                reload_url='/factures')
         return redirect(url_for('liste_factures'))
 
     # GET
@@ -594,6 +450,156 @@ def nouvelle_facture():
         today=datetime.now().strftime('%Y-%m-%d'),
         tva_defaut=18, services_list=services_list,
     )
+
+
+@app.route('/api/factures/nouvelle', methods=['POST'])
+def api_nouvelle_facture():
+    if 'username' not in session:
+        return jsonify({'ok': False, 'error': 'Non connecté'})
+    try:
+        numero        = request.form.get('numero', '').strip() or generer_numero_facture('FKSP')
+        nom_client    = request.form.get('nom_client', '').strip()
+        mode_paiement = request.form.get('mode_paiement', 'Espece')
+        etat_paiement = request.form.get('etat_paiement', 'Non Payer')
+        section       = request.form.get('section', '')
+        tva_taux      = float(request.form.get('tva_taux', 18))
+
+        if not nom_client or not section:
+            return jsonify({'ok': False, 'error': 'Client et section sont obligatoires'})
+
+        services_f     = request.form.getlist('service[]')
+        prix_unitaires = request.form.getlist('prix_unitaire[]')
+        quantites      = request.form.getlist('quantite[]')
+
+        montant_ttc_total = 0
+        lignes_data = []
+        for i in range(len(services_f)):
+            svc = services_f[i].strip() if services_f[i] else ''
+            if not svc: continue
+            pu  = float(prix_unitaires[i]) if prix_unitaires[i] else 0
+            qty = int(quantites[i]) if quantites[i] else 1
+            ht  = pu * qty
+            tva = round(ht * tva_taux / 100, 2)
+            ttc = ht + tva
+            montant_ttc_total += ttc
+            lignes_data.append({'service': svc, 'prix_unitaire': pu,
+                                 'quantite': qty, 'montant_ht': ht, 'montant_ttc': ttc})
+
+        if not lignes_data:
+            return jsonify({'ok': False, 'error': 'Ajoutez au moins une ligne de service'})
+
+        avance = float(request.form.get('montant_avance', 0) or 0)
+        if etat_paiement == 'Partiel':
+            montant_paye = avance
+            reste_du     = montant_ttc_total - avance
+        elif etat_paiement == 'Payer':
+            montant_paye = montant_ttc_total
+            reste_du     = 0
+        else:
+            montant_paye = 0
+            reste_du     = montant_ttc_total
+
+        facture = Facture(
+            numero=numero, nom_client=nom_client,
+            service=lignes_data[0]['service'],
+            montant_ttc=montant_ttc_total,
+            mode_paiement=mode_paiement, etat_paiement=etat_paiement,
+            type_operation='Recettes', section=section,
+            cree_par=session['username'],
+            montant_paye=montant_paye, reste_du=reste_du,
+        )
+        db.session.add(facture); db.session.flush()
+
+        for ld in lignes_data:
+            db.session.add(LigneFacture(
+                facture_id=facture.id, service=ld['service'],
+                prix_unitaire=ld['prix_unitaire'], quantite=ld['quantite'],
+                montant_ht=ld['montant_ht'], montant_ttc=ld['montant_ttc'],
+            ))
+
+        if etat_paiement in ('Payer', 'Partiel') and montant_paye > 0:
+            nb_p = Paiement.query.count() + 1
+            db.session.add(Paiement(
+                numero=f"PAI-{datetime.now().strftime('%d%m%Y')}-{nb_p:03d}",
+                facture_id=facture.id, n_facture=numero,
+                nom_client=nom_client, montant_facture=montant_ttc_total,
+                montant_paye=montant_paye, reste_du=reste_du,
+                mode_paiement=mode_paiement, etat_facture=etat_paiement,
+                cree_par=session['username'],
+            ))
+
+        nb_op  = Operation.query.count() + 1
+        op_num = f"OPE-{datetime.now().strftime('%d%m%Y')}-{nb_op:03d}"
+        db.session.add(Operation(
+            numero=op_num, nom_client=nom_client,
+            service=lignes_data[0]['service'],
+            montant_ttc=montant_ttc_total, type_operation='Recettes',
+            categorie='Facture', section=section, cree_par=session['username'],
+        ))
+        db.session.commit()
+        return jsonify({'ok': True, 'numero': numero})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)})
+
+
+@app.route('/api/proformas/nouvelle', methods=['POST'])
+def api_nouvelle_proforma():
+    if 'username' not in session:
+        return jsonify({'ok': False, 'error': 'Non connecté'})
+    try:
+        numero        = generer_numero_facture('PROF')
+        nom_client    = request.form.get('nom_client', '').strip()
+        mode_paiement = request.form.get('mode_paiement', 'Espece')
+        section       = request.form.get('section', '')
+        tva_taux      = float(request.form.get('tva_taux', 18))
+        notes         = request.form.get('notes', '')
+
+        if not nom_client or not section:
+            return jsonify({'ok': False, 'error': 'Client et section sont obligatoires'})
+
+        services_f     = request.form.getlist('service[]')
+        prix_unitaires = request.form.getlist('prix_unitaire[]')
+        quantites      = request.form.getlist('quantite[]')
+
+        montant_ttc_total = 0
+        lignes_data = []
+        for i in range(len(services_f)):
+            svc = services_f[i].strip() if services_f[i] else ''
+            if not svc: continue
+            pu  = float(prix_unitaires[i]) if prix_unitaires[i] else 0
+            qty = int(quantites[i]) if quantites[i] else 1
+            ht  = pu * qty
+            tva = round(ht * tva_taux / 100, 2)
+            ttc = ht + tva
+            montant_ttc_total += ttc
+            lignes_data.append({'service': svc, 'prix_unitaire': pu,
+                                 'quantite': qty, 'montant_ht': ht, 'montant_ttc': ttc})
+
+        if not lignes_data:
+            return jsonify({'ok': False, 'error': 'Ajoutez au moins une ligne de service'})
+
+        facture = Facture(
+            numero=numero, nom_client=nom_client,
+            service=lignes_data[0]['service'],
+            montant_ttc=montant_ttc_total,
+            mode_paiement=mode_paiement, etat_paiement='Non Payer',
+            type_operation='Proforma', section=section,
+            cree_par=session['username'],
+            montant_paye=0, reste_du=montant_ttc_total,
+        )
+        db.session.add(facture); db.session.flush()
+        for ld in lignes_data:
+            db.session.add(LigneFacture(
+                facture_id=facture.id, service=ld['service'],
+                prix_unitaire=ld['prix_unitaire'], quantite=ld['quantite'],
+                montant_ht=ld['montant_ht'], montant_ttc=ld['montant_ttc'],
+            ))
+        db.session.commit()
+        return jsonify({'ok': True, 'numero': numero})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)})
 
 
 @app.route('/factures/apercu/<int:id>')
@@ -1014,7 +1020,47 @@ def liste_operations():
         total_depenses=f"{total_depenses:,.0f}".replace(',', ' '),
         solde=f"{solde:,.0f}".replace(',', ' '), solde_positif=(solde >= 0),
         filtre_type=filtre_type, filtre_section=filtre_section, filtre_mois=filtre_mois,
+        clients=Client.query.all(),
     )
+
+
+@app.route('/api/operations/nouvelle', methods=['POST'])
+def api_nouvelle_operation():
+    if 'username' not in session:
+        return jsonify({'ok': False, 'error': 'Non connecté'})
+    try:
+        type_operation = request.form.get('type_operation', '').strip()
+        nom_client     = request.form.get('nom_client', '').strip()
+        service        = request.form.get('service', '').strip()
+        montant        = float(request.form.get('montant_ttc', 0) or 0)
+        section        = request.form.get('section', '').strip()
+        categorie      = request.form.get('categorie', '').strip()
+
+        if not type_operation:
+            return jsonify({'ok': False, 'error': 'Choisissez un type (Recette ou Dépense)'})
+        if not service:
+            return jsonify({'ok': False, 'error': 'Le service / désignation est obligatoire'})
+        if not section:
+            return jsonify({'ok': False, 'error': 'Choisissez une section'})
+        if montant <= 0:
+            return jsonify({'ok': False, 'error': 'Le montant doit être supérieur à 0'})
+
+        nb     = Operation.query.count() + 1
+        numero = f"OPE-{datetime.now().strftime('%d%m%Y')}-{nb:03d}"
+        while Operation.query.filter_by(numero=numero).first():
+            nb += 1; numero = f"OPE-{datetime.now().strftime('%d%m%Y')}-{nb:03d}"
+
+        db.session.add(Operation(
+            numero=numero, nom_client=nom_client or service,
+            service=service, montant_ttc=montant,
+            type_operation=type_operation, categorie=categorie,
+            section=section, cree_par=session['username'],
+        ))
+        db.session.commit()
+        return jsonify({'ok': True, 'numero': numero})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(e)})
 
 
 @app.route('/operations/nouvelle', methods=['GET', 'POST'])
@@ -1851,10 +1897,11 @@ def exporter_donnees():
             'nom'           : m.nom,
             'categorie'     : m.categorie,
             'marque'        : m.marque,
-            'reference'     : m.reference,
+            'modele'        : m.modele,
             'provenance'    : m.provenance,
             'quantite'      : m.quantite,
-            'prix_achat'    : m.prix_achat,
+            'cout_location' : m.cout_location,
+            'statut'        : m.statut,
             'notes'         : m.notes,
             'fournisseur'   : fournisseur.nom if fournisseur else None,
         })
@@ -1923,13 +1970,27 @@ def importer_donnees():
         contenu = fichier.read().decode('utf-8')
         data    = json_module.loads(contenu)
 
-        # Vérifier que c'est un backup valide
-        if 'meta' not in data or data['meta'].get('application') != 'KS Production Web':
-            flash('Fichier invalide. Ce n\'est pas un backup KS Production.', 'danger')
+        # Vérifier que c'est un backup KS Production valide
+        cles_connues = {'factures','clients','operations','paiements',
+                        'services','techniciens','materiels','prestations','depenses'}
+        valide = isinstance(data, dict) and (
+            data.get('version') in ('1.0', '2.0') or
+            'meta' in data or
+            bool(cles_connues & set(data.keys()))
+        )
+        if not valide:
+            flash("Fichier invalide. Ce n'est pas un backup KS Production.", 'danger')
             return redirect(url_for('sauvegarde'))
 
-        # ── Mode REMPLACER : vider les tables d'abord ──
+                # ── Mode REMPLACER : vider les tables d'abord ──
         if mode == 'remplacer':
+            RecuPaiement.query.delete()
+            DepensePrestation.query.delete()
+            PrestationArchivee.query.delete()
+            Evenement.query.delete()
+            Materiel.query.delete()
+            Fournisseur.query.delete()
+            Technicien.query.delete()
             LigneFacture.query.delete()
             Paiement.query.delete()
             Facture.query.delete()
@@ -1941,10 +2002,21 @@ def importer_donnees():
         # ── Importer les clients ──
         nb_clients = 0
         for c in data.get('clients', []):
-            if mode == 'fusionner' and Client.query.filter_by(numero=c['numero']).first():
+            nom_c = c.get('nom','').strip()
+            if not nom_c: continue
+            # Dédup par nom (le numero peut être absent dans les nouveaux backups)
+            if mode == 'fusionner' and Client.query.filter_by(nom=nom_c).first():
                 continue
+            # Générer un numéro unique si absent
+            num_c = c.get('numero','').strip()
+            if not num_c:
+                import random, string
+                num_c = 'CLI-' + ''.join(random.choices(string.digits, k=6))
+            # Éviter doublons de numéro
+            while Client.query.filter_by(numero=num_c).first():
+                num_c = 'CLI-' + ''.join(random.choices(string.digits, k=6))
             db.session.add(Client(
-                numero=c.get('numero',''), nom=c.get('nom',''),
+                numero=num_c, nom=nom_c,
                 adresse=c.get('adresse',''), telephone=c.get('telephone',''),
                 email=c.get('email',''), nif=c.get('nif',''), rccm=c.get('rccm',''),
             ))
@@ -1966,14 +2038,21 @@ def importer_donnees():
         # ── Importer les factures ──
         nb_factures = 0
         for f in data.get('factures', []):
-            if mode == 'fusionner' and Facture.query.filter_by(numero=f['numero']).first():
+            num_f = f.get('numero','').strip()
+            if mode == 'fusionner' and num_f and Facture.query.filter_by(numero=num_f).first():
                 continue
             date_obj = datetime.strptime(f['date'], '%Y-%m-%d') if f.get('date') else datetime.now()
+            # Détecter les proformas par le préfixe du numéro
+            type_op = f.get('type_operation', '')
+            if not type_op:
+                type_op = 'Proforma' if str(num_f).startswith('PROF') else 'Recettes'
             db.session.add(Facture(
-                numero=f.get('numero',''), date=date_obj,
+                numero=num_f or generer_numero_facture('FKSP'),
+                date=date_obj,
                 nom_client=f.get('nom_client',''), service=f.get('service',''),
                 montant_ttc=f.get('montant_ttc', 0), mode_paiement=f.get('mode_paiement',''),
                 etat_paiement=f.get('etat_paiement',''), section=f.get('section',''),
+                type_operation=type_op,
                 cree_par=f.get('cree_par',''), montant_paye=f.get('montant_paye', 0),
                 reste_du=f.get('reste_du', 0),
             ))
@@ -1995,7 +2074,8 @@ def importer_donnees():
         # ── Importer les opérations ──
         nb_operations = 0
         for o in data.get('operations', []):
-            if mode == 'fusionner' and Operation.query.filter_by(numero=o['numero']).first():
+            num_o = o.get('numero','').strip()
+            if mode == 'fusionner' and num_o and Operation.query.filter_by(numero=num_o).first():
                 continue
             date_obj = datetime.strptime(o['date'], '%Y-%m-%d') if o.get('date') else datetime.now()
             db.session.add(Operation(
@@ -2011,11 +2091,10 @@ def importer_donnees():
         # ── Importer les paiements ──
         nb_paiements = 0
         for p in data.get('paiements', []):
-            if mode == 'fusionner' and Paiement.query.filter_by(numero=p['numero']).first():
+            if mode == 'fusionner' and Paiement.query.filter_by(numero=p.get('numero','')).first():
                 continue
-            fac = Facture.query.filter_by(numero=p.get('facture_numero')).first()
-            if not fac:
-                continue
+            fac = Facture.query.filter_by(numero=p.get('facture_numero',p.get('n_facture',''))).first()
+            if not fac: continue
             date_obj = datetime.strptime(p['date'], '%Y-%m-%d') if p.get('date') else datetime.now()
             db.session.add(Paiement(
                 numero=p.get('numero',''), date=date_obj,
@@ -2028,11 +2107,102 @@ def importer_donnees():
             nb_paiements += 1
         db.session.commit()
 
+        # ── Importer les techniciens ──
+        nb_techs = 0
+        for t in data.get('techniciens', []):
+            if mode == 'fusionner' and Technicien.query.filter_by(nom=t.get('nom','')).first():
+                continue
+            db.session.add(Technicien(
+                nom=t.get('nom',''), telephone=t.get('telephone',''),
+                email=t.get('email',''), specialite=t.get('specialite',''),
+                role=t.get('role',''), statut_emploi=t.get('statut_emploi','Temporaire'),
+                salaire_base=t.get('salaire_base', 0), statut='Disponible',
+            ))
+            nb_techs += 1
+        db.session.commit()
+
+        # ── Importer les fournisseurs ──
+        nb_fourni = 0
+        for f in data.get('fournisseurs', []):
+            if mode == 'fusionner' and Fournisseur.query.filter_by(nom=f.get('nom','')).first():
+                continue
+            db.session.add(Fournisseur(
+                nom=f.get('nom',''), telephone=f.get('telephone',''),
+                email=f.get('email',''), adresse=f.get('adresse',''),
+                notes=f.get('notes',''),
+            ))
+            nb_fourni += 1
+        db.session.commit()
+
+        # ── Importer les matériels ──
+        nb_mat = 0
+        for m in data.get('materiels', []):
+            if mode == 'fusionner' and Materiel.query.filter_by(nom=m.get('nom','')).first():
+                continue
+            fou = Fournisseur.query.filter_by(nom=m.get('fournisseur','')).first() if m.get('fournisseur') else None
+            db.session.add(Materiel(
+                nom=m.get('nom',''), categorie=m.get('categorie',''),
+                marque=m.get('marque',''), modele=m.get('modele',''),
+                quantite=m.get('quantite', 1), provenance=m.get('provenance','KS Production'),
+                fournisseur_id=fou.id if fou else None,
+            ))
+            nb_mat += 1
+        db.session.commit()
+
+        # ── Importer les prestations ──
+        nb_presta = 0
+        for e in data.get('prestations', []):
+            date_obj = datetime.strptime(e['date'], '%Y-%m-%d') if e.get('date') else datetime.now()
+            db.session.add(Evenement(
+                titre=e.get('titre',''), date=date_obj,
+                nom_client=e.get('nom_client',''), lieu=e.get('lieu',''),
+                section=e.get('section',''), statut=e.get('statut','Confirmé'),
+                service=e.get('service',''), notes=e.get('notes',''),
+            ))
+            nb_presta += 1
+        db.session.commit()
+
+        # ── Importer les dépenses prestations ──
+        nb_depenses = 0
+        for d in data.get('depenses', []):
+            # Chercher la prestation associée (par titre ou premier événement dispo)
+            evt = None
+            if d.get('evenement_titre'):
+                evt = Evenement.query.filter_by(titre=d['evenement_titre']).first()
+            if not evt:
+                evt = Evenement.query.first()  # Associer au premier evt si absent
+
+            if not evt:
+                # Pas d'événement du tout → créer un événement générique
+                from datetime import date as _date
+                evt_gen = Evenement.query.filter_by(titre='Import Dépenses').first()
+                if not evt_gen:
+                    evt_gen = Evenement(
+                        titre='Import Dépenses', nom_client='—',
+                        date=_date.today(), section='Général', statut='Confirmé',
+                    )
+                    db.session.add(evt_gen)
+                    db.session.flush()
+                evt = evt_gen
+
+            db.session.add(DepensePrestation(
+                type_depense  = d.get('type_depense', 'Autre'),
+                description   = d.get('description', ''),
+                beneficiaire  = d.get('beneficiaire', ''),
+                montant       = d.get('montant', 0),
+                statut        = d.get('statut', 'En attente'),
+                evenement_id  = evt.id,
+            ))
+            nb_depenses += 1
+        db.session.commit()
+
         flash(
             f'✅ Import réussi ! '
             f'{nb_clients} client(s), {nb_services} service(s), '
             f'{nb_factures} facture(s), {nb_operations} opération(s), '
-            f'{nb_paiements} paiement(s) importé(s).',
+            f'{nb_paiements} paiement(s), {nb_techs} technicien(s), '
+            f'{nb_fourni} fournisseur(s), {nb_mat} matériel(s), '
+            f'{nb_presta} prestation(s), {nb_depenses} dépense(s) importé(s).',
             'success'
         )
 
@@ -2114,6 +2284,11 @@ def nouvelle_proforma():
         db.session.commit()
 
         flash(f'Proforma {numero} créée avec succès !', 'success')
+        # Si ouvert en fenêtre PyWebView → fermer et rafraîchir
+        if request.args.get('popup') == '1':
+            return render_template('fermer_fenetre.html',
+                message=f'Proforma {numero} créée avec succès !',
+                reload_url='/proformas')
         return redirect(url_for('liste_proformas'))
 
     # GET
@@ -2148,6 +2323,9 @@ def liste_proformas():
         nb_en_attente = sum(1 for p in proformas if p.etat_paiement == 'Non Payer'),
         nb_converties = sum(1 for p in proformas if p.etat_paiement == 'Converti'),
         total_ttc     = f"{total_ttc:,.0f}".replace(',', ' '),
+        clients       = Client.query.all(),
+        services_list = Service.query.filter_by(actif=True).order_by(Service.section, Service.libelle).all(),
+        numero_auto   = generer_numero_facture('PROF'),
     )
 
 
@@ -3014,49 +3192,7 @@ def api_techniciens_disponibles():
 # À coller dans app.py avant le if __name__
 # ================================================================
 
-@app.route('/api/alertes')
-def api_alertes():
-    from flask import jsonify
-    from datetime import date, timedelta
 
-    if 'username' not in session:
-        return jsonify([])
-
-    aujourd_hui = date.today()
-    dans_7j     = aujourd_hui + timedelta(days=7)
-
-    # Événements confirmés dans les 7 prochains jours
-    evenements = Evenement.query.filter(
-        Evenement.date >= aujourd_hui,
-        Evenement.date <= dans_7j,
-        Evenement.statut == 'Confirmé'
-    ).order_by(Evenement.date).all()
-
-    alertes = []
-    for ev in evenements:
-        delta = (ev.date - aujourd_hui).days
-        if delta == 0:
-            niveau = 'danger';  label = "Aujourd'hui !"
-        elif delta == 1:
-            niveau = 'danger';  label = 'Demain (J-1)'
-        elif delta <= 3:
-            niveau = 'warning'; label = f'Dans {delta} jours (J-{delta})'
-        else:
-            niveau = 'info';    label = f'Dans {delta} jours (J-{delta})'
-
-        alertes.append({
-            'id':     ev.id,
-            'titre':  ev.titre,
-            'date':   ev.date.strftime('%d/%m/%Y'),
-            'heure':  ev.heure_debut or '',
-            'client': ev.nom_client or '',
-            'lieu':   ev.lieu or '',
-            'delta':  delta,
-            'label':  label,
-            'niveau': niveau,
-        })
-
-    return jsonify(alertes)
 
 
 # ================================================================

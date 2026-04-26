@@ -174,9 +174,9 @@
             <h5><i class="bi bi-plus-circle me-2" style="color:var(--ks-accent);"></i>Nouvelle Facture</h5>
             <small class="text-muted">Créer une facture avec une ou plusieurs lignes</small>
         </div>
-        <a href="/factures" class="btn btn-outline-secondary btn-sm">
+        <button onclick="retourOuFermer()" class="btn btn-outline-secondary btn-sm">
             <i class="bi bi-arrow-left me-1"></i>Retour
-        </a>
+        </button>
     </div>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -187,7 +187,7 @@
         {% endfor %}
     {% endwith %}
 
-    <form method="POST" action="/factures/nouvelle" id="formFacture">
+    <form method="POST" action="/factures/nouvelle?popup=1" id="formFacture">
 
         <!-- INFOS GÉNÉRALES -->
         <div class="form-card">
@@ -507,6 +507,10 @@
         overlay.classList.remove('active');
         if (icon) icon.className = 'bi bi-list';
     }
-    </script>
+        function retourOuFermer() {
+        fetch('/api/close-window').catch(function(){});
+        setTimeout(function(){ window.close(); }, 200);
+    }
+</script>
 </body>
 </html>

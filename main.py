@@ -453,219 +453,243 @@ def api_enregistrer_pdf():
     threading.Thread(target=_enregistrer, daemon=True).start()
     return jsonify({'ok': True})
 
-# ── Fenêtres aperçu natives ──────────────────────────────────────────
-apercu_windows = {}
-apercu_lock = threading.Lock()
+# ── Sauvegarde JSON via dialog natif ────────────────────────────────
+@app.route('/api/sauvegarder-json')
+def api_sauvegarder_json():
+    if 'username' not in session:
+        return jsonify({'ok': False, 'error': 'Non connecté'})
 
-APERCU_INJECT_JS = r"""
-(function() {
-    // JS de secours - le HTML gère maintenant tout directement
-    console.log('[KS] APERCU_INJECT_JS loaded:', window.location.pathname);
-})();
-"""
+    # Générer le contenu JSON directement (sans HTTP interne)
+    try:
+        from database import (Client, Facture, LigneFacture, Paiement,
+                               Operation, Service, Parametres, Evenement,
+                               Technicien, Fournisseur, Materiel,
+                               DepensePrestation, RecuPaiement)
+        import json as _json
+        from datetime import datetime as dt
 
-def open_apercu_window(url, title='Aperçu'):
-    full_url = f'http://127.0.0.1:5000{url}' if url.startswith('/') else url
+        data = {
+            'version': '2.0', 'date_export': dt.now().strftime('%d/%m/%Y %H:%M'),
+            'factures': [], 'lignes': [], 'paiements': [], 'operations': [],
+            'clients': [], 'services': [], 'techniciens': [], 'fournisseurs': [],
+            'materiels': [], 'prestations': [], 'depenses': [],
+        }
 
-    def _open():
-        with apercu_lock:
-            if url in apercu_windows:
-                try: apercu_windows[url].destroy()
-                except: pass
+        # Factures + Proformas
+        for f in Facture.query.all():
+            data['factures'].append({
+                'numero': f.numero, 'nom_client': f.nom_client,
+                'service': f.service, 'montant_ttc': f.montant_ttc,
+                'etat_paiement': f.etat_paiement, 'mode_paiement': f.mode_paiement,
+                'section': f.section, 'type_operation': f.type_operation or 'Recettes',
+                'montant_paye': f.montant_paye or 0, 'reste_du': f.reste_du or 0,
+                'cree_par': f.cree_par or '',
+                'date': f.date.strftime('%Y-%m-%d') if f.date else None,
+            })
 
-        win = webview.create_window(
-            title=title, url=full_url,
-            width=1050, height=780,
-            min_size=(700, 500),
-            resizable=True, confirm_close=False,
-        )
-        with apercu_lock:
-            apercu_windows[url] = win
+        # Lignes de facture
+        for l in LigneFacture.query.all():
+            fac = Facture.query.get(l.facture_id)
+            data['lignes'].append({
+                'facture_numero': fac.numero if fac else '',
+                'service': l.service, 'prix_unitaire': l.prix_unitaire,
+                'quantite': l.quantite, 'montant_ht': l.montant_ht,
+                'montant_ttc': l.montant_ttc,
+            })
 
-        def on_loaded():
-            try: win.evaluate_js(APERCU_INJECT_JS)
-            except: pass
+        # Paiements
+        for p in Paiement.query.all():
+            fac = Facture.query.get(p.facture_id)
+            data['paiements'].append({
+                'numero': p.numero, 'n_facture': p.n_facture or '',
+                'facture_numero': fac.numero if fac else (p.n_facture or ''),
+                'nom_client': p.nom_client, 'montant_facture': p.montant_facture,
+                'montant_paye': p.montant_paye, 'reste_du': p.reste_du,
+                'mode_paiement': p.mode_paiement, 'etat_facture': p.etat_facture,
+                'notes': p.notes or '',
+                'date': p.date.strftime('%Y-%m-%d') if p.date else None,
+            })
 
-        def on_closed():
-            with apercu_lock: apercu_windows.pop(url, None)
+        # Opérations
+        for o in Operation.query.all():
+            data['operations'].append({
+                'numero': o.numero, 'nom_client': o.nom_client,
+                'service': o.service, 'montant_ttc': o.montant_ttc,
+                'type_operation': o.type_operation, 'section': o.section,
+                'categorie': o.categorie or '',
+                'date': o.date.strftime('%Y-%m-%d') if o.date else None,
+            })
 
-        win.events.loaded += on_loaded
-        win.events.closed += on_closed
+        # Clients
+        for c in Client.query.all():
+            data['clients'].append({
+                'numero': c.numero, 'nom': c.nom,
+                'telephone': c.telephone, 'email': c.email or '',
+                'adresse': c.adresse or '', 'nif': c.nif or '', 'rccm': c.rccm or '',
+            })
 
-    threading.Thread(target=_open, daemon=True).start()
+        # Services
+        for s in Service.query.all():
+            data['services'].append({
+                'libelle': s.libelle, 'prix': s.prix,
+                'section': s.section, 'actif': s.actif,
+            })
 
-KS_INJECT_JS = r"""
-(function() {
-    if (window._ksInjected) return;
-    // Ne pas injecter dans les fenêtres aperçu (elles ont leur propre injection)
-    var path = window.location.pathname;
-    if (path.indexOf('/apercu') !== -1 ||
-        path.indexOf('/telecharger') !== -1 ||
-        path.indexOf('/relances/pdf') !== -1 ||
-        path.indexOf('/fiche-pdf') !== -1 ||
-        path.indexOf('fiche-tarifs') !== -1) {
-        return;
-    }
-    window._ksInjected = true;
+        # Techniciens
+        for t in Technicien.query.all():
+            data['techniciens'].append({
+                'nom': t.nom, 'telephone': t.telephone or '',
+                'email': t.email or '', 'specialite': t.specialite or '',
+                'role': t.role or '', 'statut_emploi': t.statut_emploi or 'Temporaire',
+                'salaire_base': t.salaire_base or 0,
+            })
 
-    var style = document.createElement('style');
-    style.textContent = [
-        'body { display:flex!important; min-height:100vh!important; margin:0!important; }',
-        '.sidebar { position:relative!important; flex-shrink:0!important; width:200px!important; min-height:100vh!important; }',
-        '.main-content, .main { flex:1!important; min-width:0!important; margin-left:0!important; overflow-x:hidden!important; padding:20px!important; box-sizing:border-box!important; }'
-    ].join('');
-    document.head.appendChild(style);
+        # Fournisseurs
+        for f in Fournisseur.query.all():
+            data['fournisseurs'].append({
+                'nom': f.nom, 'telephone': f.telephone or '',
+                'email': f.email or '', 'adresse': f.adresse or '',
+            })
 
-    var overlay = document.createElement('div');
-    overlay.id = 'ks-popup-overlay';
-    overlay.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:99999;align-items:center;justify-content:center;';
-    overlay.innerHTML = [
-        '<div id="ks-popup-box" style="background:#fff;border-radius:16px;width:70%;max-width:750px;height:80%;',
-            'display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4);">',
-            '<div style="padding:11px 18px;background:#1a1a2e;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">',
-                '<span id="ks-popup-title" style="color:#fff;font-size:.88rem;font-weight:700;">Paiement</span>',
-                '<button id="ks-popup-close" style="background:#e94560;border:none;color:#fff;border-radius:8px;padding:5px 14px;cursor:pointer;font-size:.78rem;font-weight:600;">&#10005; Fermer</button>',
-            '</div>',
-            '<iframe id="ks-popup-frame" src="" style="flex:1;border:none;width:100%;"></iframe>',
-        '</div>'
-    ].join('');
-    document.body.appendChild(overlay);
+        # Matériels
+        for m in Materiel.query.all():
+            fou = Fournisseur.query.get(m.fournisseur_id) if m.fournisseur_id else None
+            data['materiels'].append({
+                'nom': m.nom, 'categorie': m.categorie or '',
+                'marque': m.marque or '', 'modele': m.modele or '',
+                'quantite': m.quantite or 1,
+                'provenance': m.provenance or 'KS Production',
+                'fournisseur': fou.nom if fou else None,
+            })
 
-    document.getElementById('ks-popup-close').addEventListener('click', closePopup);
-    overlay.addEventListener('click', function(e) { if (e.target === overlay) closePopup(); });
+        # Prestations
+        for e in Evenement.query.all():
+            data['prestations'].append({
+                'titre': e.titre, 'nom_client': e.nom_client or '',
+                'lieu': e.lieu or '', 'section': e.section or '',
+                'statut': e.statut or 'Confirmé', 'service': e.service or '',
+                'notes': e.notes or '',
+                'heure_debut': e.heure_debut or '', 'heure_fin': e.heure_fin or '',
+                'date': e.date.strftime('%Y-%m-%d') if e.date else None,
+            })
 
-    function closePopup() {
-        overlay.style.display = 'none';
-        document.getElementById('ks-popup-frame').src = '';
-        window.location.reload();
-    }
+        # Dépenses prestations
+        for d in DepensePrestation.query.all():
+            data['depenses'].append({
+                'type_depense': d.type_depense, 'description': d.description,
+                'beneficiaire': d.beneficiaire or '', 'montant': d.montant,
+                'statut': d.statut,
+            })
 
-    window.openKSPopup = function(url, title) {
-        document.getElementById('ks-popup-title').textContent = title || 'Paiement';
-        document.getElementById('ks-popup-frame').src = url.startsWith('/') ? 'http://127.0.0.1:5000' + url : url;
-        overlay.style.display = 'flex';
-    };
+        contenu     = _json.dumps(data, ensure_ascii=False, indent=2)
+        nom_fichier = f"KS_Backup_{dt.now().strftime('%d%m%Y_%H%M')}.json"
 
-    window.openNativeWindow = function(url, title) {
-        fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(title))
-            .catch(function() {});
-    };
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)})
 
-    function interceptLinks() {
-        document.querySelectorAll('a[target="_blank"]').forEach(function(a) { a.removeAttribute('target'); });
-
-        var sel = ['a[href*="/apercu"]','a[href*="/relances/pdf"]',
-                   'a[href*="fiche-tarifs"]','a[href*="/proforma/pdf"]',
-                   'a[href*="/fiche-pdf"]'].join(',');
-
-        document.querySelectorAll(sel).forEach(function(a) {
-            if (a._ksHandled) return;
-            a._ksHandled = true;
-            var href  = a.getAttribute('href');
-            var title = a.textContent.trim() || 'Aperçu';
-            a.addEventListener('click', function(e) {
-                e.preventDefault(); e.stopPropagation();
-                window.openNativeWindow(href, title);
-            });
-        });
-
-        document.querySelectorAll('a[href*="/paiements/enregistrer"]').forEach(function(a) {
-            if (a._ksHandled) return;
-            a._ksHandled = true;
-            var href = a.getAttribute('href');
-            a.addEventListener('click', function(e) {
-                e.preventDefault(); e.stopPropagation();
-                window.openKSPopup(href, 'Enregistrer un paiement');
-            });
-        });
-    }
-
-    interceptLinks();
-    new MutationObserver(interceptLinks).observe(document.body, { childList: true, subtree: true });
-})();
-"""
-
-def run_flask():
-    with app.app_context():
-        initialiser_base()
-    app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False, threaded=True)
-
-def wait_for_flask(timeout=10):
-    import urllib.request
-    for _ in range(timeout * 10):
+    def _ouvrir_dialog(contenu_str, nom):
         try:
-            urllib.request.urlopen('http://127.0.0.1:5000/login')
-            return True
-        except:
-            time.sleep(0.1)
-    return False
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            chemin = filedialog.asksaveasfilename(
+                title='Enregistrer la sauvegarde KS Production',
+                initialfile=nom,
+                defaultextension='.json',
+                filetypes=[('Fichiers JSON', '*.json'), ('Tous les fichiers', '*.*')]
+            )
+            root.destroy()
+            if not chemin:
+                print("[BACKUP] Annulé"); return
+            with open(chemin, 'w', encoding='utf-8') as f:
+                f.write(contenu_str)
+            print(f"[BACKUP] ✅ Enregistré: {chemin}")
+        except Exception as ex:
+            print(f"[BACKUP] ❌ Erreur: {ex}")
 
+    threading.Thread(target=_ouvrir_dialog, args=(contenu, nom_fichier), daemon=True).start()
+    return jsonify({'ok': True})
+
+
+# ── Lancement principal ──────────────────────────────────────────────
 def get_ecran_principal():
-    """Retourne (largeur, hauteur) de l'écran principal via ctypes Windows."""
     try:
         import ctypes
-        user32   = ctypes.windll.user32
-        user32.SetProcessDPIAware()          # Tient compte du scaling DPI
-        largeur  = user32.GetSystemMetrics(0)
-        hauteur  = user32.GetSystemMetrics(1)
-        return largeur, hauteur
+        user32 = ctypes.windll.user32
+        user32.SetProcessDPIAware()
+        class RECT(ctypes.Structure):
+            _fields_ = [("left",ctypes.c_long),("top",ctypes.c_long),
+                        ("right",ctypes.c_long),("bottom",ctypes.c_long)]
+        rect = RECT()
+        ctypes.windll.user32.SystemParametersInfoW(0x30, 0, ctypes.byref(rect), 0)
+        return rect.right - rect.left, rect.bottom - rect.top
     except Exception:
-        return 1920, 1080                    # Fallback
+        return 1920, 1040
 
-def main():
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
 
-    if not wait_for_flask():
-        print("Erreur Flask")
-        sys.exit(1)
+def demarrer_flask():
+    app.run(host='127.0.0.1', port=5000, debug=False, use_reloader=False)
 
-    # ── Calcul position centrée sur l'écran principal ─────────────
-    WIN_W, WIN_H     = 460, 640
-    ecran_w, ecran_h = get_ecran_principal()
-    pos_x = max(0, (ecran_w - WIN_W) // 2)
-    pos_y = max(0, (ecran_h - WIN_H) // 2)
-    print(f"[LOGIN] Écran {ecran_w}×{ecran_h} → fenêtre à ({pos_x}, {pos_y})")
-
-    # ── État partagé ──────────────────────────────────────────────
-    state = {'connecte': False}
-
-    # ── Fenêtre login : petite, centrée, non redimensionnable ─────
-    window = webview.create_window(
-        title='KS Production — Connexion',
-        url='http://127.0.0.1:5000/login',
-        width=WIN_W, height=WIN_H,
-        x=pos_x, y=pos_y,
-        min_size=(WIN_W, WIN_H),
-        resizable=False,
-        confirm_close=False,   # Pas de confirm sur la page login
-    )
-
-    def on_loaded():
-        try:
-            url = window.get_current_url() or ''
-
-            if '/login' not in url:
-                # ── Connecté → plein écran + confirm_close ───────
-                if not state['connecte']:
-                    state['connecte'] = True
-                    window.set_title('KS Production')
-                    try:
-                        window.maximize()
-                    except Exception:
-                        window.resize(1280, 800)
-                    # Activer la confirmation de fermeture
-                    try:
-                        window.confirm_close = True
-                    except Exception:
-                        pass
-                window.evaluate_js(KS_INJECT_JS)
-
-        except Exception as e:
-            print(f"[LOADED] {e}")
-
-    window.events.loaded += on_loaded
-    webview.start(debug=False)
 
 if __name__ == '__main__':
-    main()
+    # Démarrer Flask dans un thread
+    t = threading.Thread(target=demarrer_flask, daemon=True)
+    t.start()
+
+    import time
+    time.sleep(1)
+
+    # Créer la fenêtre login (petite, centrée)
+    try:
+        import ctypes
+        user32 = ctypes.windll.user32
+        user32.SetProcessDPIAware()
+        class RECT(ctypes.Structure):
+            _fields_ = [("left",ctypes.c_long),("top",ctypes.c_long),
+                        ("right",ctypes.c_long),("bottom",ctypes.c_long)]
+        rect = RECT()
+        ctypes.windll.user32.SystemParametersInfoW(0x30, 0, ctypes.byref(rect), 0)
+        sw = rect.right - rect.left
+        sh = rect.bottom - rect.top
+        lw, lh = 460, 640
+        lx = rect.left + (sw - lw) // 2
+        ly = rect.top  + (sh - lh) // 2
+        print(f"[LOGIN] Écran {sw}×{sh} → fenêtre à ({lx}, {ly})")
+    except Exception:
+        lx, ly, lw, lh = 730, 220, 460, 640
+
+    window = webview.create_window(
+        'KS Production — Connexion',
+        f'http://127.0.0.1:5000/login',
+        width=lw, height=lh,
+        x=lx, y=ly,
+        resizable=True,
+        confirm_close=False,
+    )
+
+    state = {'connecte': False}
+
+    def on_loaded():
+        import time
+        time.sleep(0.3)
+        url = window.get_current_url() or ''
+        if '/dashboard' in url or ('/login' not in url and url):
+            if not state['connecte']:
+                state['connecte'] = True
+                window.set_title('KS Production')
+                try:
+                    w, h = get_ecran_principal()
+                    window.resize(w, h)
+                    window.move(0, 0)
+                except Exception:
+                    pass
+                try:
+                    window.on_top = False
+                except Exception:
+                    pass
+
+    window.events.loaded += on_loaded
+
+    webview.start(debug=False)

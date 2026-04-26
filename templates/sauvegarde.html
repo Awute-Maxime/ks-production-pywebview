@@ -345,10 +345,10 @@
                         <div class="bc-item"><i class="bi bi-check-circle-fill"></i> Paramètres de l'entreprise</div>
                     </div>
 
-                    <a href="/sauvegarde/exporter" class="btn-export">
+                    <button onclick="sauvegarderJSON()" class="btn-export" id="btnBackup">
                         <i class="bi bi-download"></i>
                         Télécharger la sauvegarde
-                    </a>
+                    </button>
                     <div style="font-size:.72rem; color:#9ca3af; margin-top:10px;">
                         <i class="bi bi-clock me-1"></i>Fichier : KS_Backup_{{ "now"|default("DATE") }}.json
                     </div>
@@ -483,6 +483,31 @@
         overlay.classList.remove('active');
         if (icon) icon.className = 'bi bi-list';
     }
-    </script>
+        function sauvegarderJSON() {
+        const btn = document.getElementById('btnBackup');
+        const orig = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> Préparation...';
+        btn.disabled = true;
+        fetch('/api/sauvegarder-json')
+            .then(r => r.json())
+            .then(d => {
+                if (d.ok) {
+                    btn.innerHTML = '<i class="bi bi-check-lg"></i> Boîte de dialogue ouverte';
+                    setTimeout(() => {
+                        btn.innerHTML = orig;
+                        btn.disabled = false;
+                    }, 3000);
+                } else {
+                    alert('Erreur : ' + (d.error || 'inconnue'));
+                    btn.innerHTML = orig;
+                    btn.disabled = false;
+                }
+            })
+            .catch(() => {
+                btn.innerHTML = orig;
+                btn.disabled = false;
+            });
+    }
+</script>
 </body>
 </html>

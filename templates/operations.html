@@ -202,9 +202,9 @@
             <span class="badge bg-secondary">{{ role }}</span>
             <span class="text-muted" style="font-size:.85rem;">👤 {{ username }}</span>
             {% if role != 'Lecture seule' %}
-            <a href="/operations/nouvelle" class="btn btn-ks btn-sm">
+            <button class="btn btn-ks btn-sm" data-bs-toggle="modal" data-bs-target="#modalNouvelleOpe">
                 <i class="bi bi-plus-lg me-1"></i>Nouvelle Opération
-            </a>
+            </button>
             {% endif %}
             <!-- CLOCHE ALERTES -->
             <div class="position-relative">
@@ -475,5 +475,213 @@ document.addEventListener('DOMContentLoaded', initBadgeAlertes);
         if (icon) icon.className = 'bi bi-list';
     }
     </script>
+
+<!-- ══ MODAL NOUVELLE OPÉRATION ════════════════════════════════ -->
+<div class="modal fade" id="modalNouvelleOpe" tabindex="-1" data-bs-backdrop="static">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <div class="modal-header" style="background:#1a1a2e; color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nouvelle Opération</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal" onclick="resetFormOpe()"></button>
+    </div>
+    <div class="modal-body" style="padding:22px 26px;">
+
+        <div id="flashOpe" class="alert alert-danger mb-3" style="display:none;">
+            <span id="flashOpeMsg"></span>
+        </div>
+
+        <!-- TYPE -->
+        <div class="mb-4">
+            <label class="form-label fw-bold">Type d'opération <span class="text-danger">*</span></label>
+            <div style="display:flex; gap:12px;">
+                <div id="ope-btn-recette" onclick="selectTypeOpe('Recettes')"
+                     style="flex:1; border:2px solid #e5e7eb; border-radius:12px; padding:14px; text-align:center; cursor:pointer; transition:all .2s;">
+                    <div style="font-size:1.6rem;">💰</div>
+                    <div style="font-weight:700; color:#374151;">Recette</div>
+                    <small style="color:#9ca3af;">Entrée d'argent</small>
+                </div>
+                <div id="ope-btn-depense" onclick="selectTypeOpe('Depenses')"
+                     style="flex:1; border:2px solid #e5e7eb; border-radius:12px; padding:14px; text-align:center; cursor:pointer; transition:all .2s;">
+                    <div style="font-size:1.6rem;">💸</div>
+                    <div style="font-weight:700; color:#374151;">Dépense</div>
+                    <small style="color:#9ca3af;">Sortie d'argent</small>
+                </div>
+            </div>
+            <input type="hidden" id="ope_type">
+        </div>
+
+        <div class="row g-3">
+            <!-- Client / Libellé -->
+            <div class="col-12">
+                <label class="form-label fw-bold">Client / Libellé</label>
+                <div class="d-flex gap-2">
+                    <select class="form-select" id="ope_selectClient" onchange="document.getElementById('ope_client').value=this.value">
+                        <option value="">-- Client existant --</option>
+                        {% for client in clients %}
+                        <option value="{{ client.nom }}">{{ client.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" class="form-control" id="ope_client" placeholder="Ou saisir...">
+                </div>
+                <small class="text-muted">Pour une dépense interne, indiquer le libellé (ex: Salaires, Loyer…)</small>
+            </div>
+
+            <!-- Service / Désignation -->
+            <div class="col-md-8">
+                <label class="form-label fw-bold">Service / Désignation <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="ope_service" placeholder="Ex: Sonorisation Mariage, Achat matériel..." oninput="verifierOpe()">
+            </div>
+
+            <!-- Montant -->
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Montant TTC (FCFA) <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="ope_montant" placeholder="0" min="0" step="any" oninput="verifierOpe()">
+                <div id="ope_montant_affiche" style="font-size:.8rem; color:#0984e3; margin-top:4px; font-weight:600;"></div>
+            </div>
+
+            <!-- Section -->
+            <div class="col-12">
+                <label class="form-label fw-bold">Section <span class="text-danger">*</span></label>
+                <div style="display:flex; gap:10px;">
+                    <div id="ope-sec-studio" onclick="selectSectionOpe('Studio')"
+                         style="flex:1; border:2px solid #e5e7eb; border-radius:10px; padding:10px; text-align:center; cursor:pointer; transition:all .2s;">
+                        <div style="font-size:1.2rem;">🎙️</div>
+                        <div style="font-size:.84rem; font-weight:700;">Studio</div>
+                    </div>
+                    <div id="ope-sec-sono" onclick="selectSectionOpe('Sonorisation')"
+                         style="flex:1; border:2px solid #e5e7eb; border-radius:10px; padding:10px; text-align:center; cursor:pointer; transition:all .2s;">
+                        <div style="font-size:1.2rem;">🔊</div>
+                        <div style="font-size:.84rem; font-weight:700;">Sonorisation</div>
+                    </div>
+                    <div id="ope-sec-gen" onclick="selectSectionOpe('Général')"
+                         style="flex:1; border:2px solid #e5e7eb; border-radius:10px; padding:10px; text-align:center; cursor:pointer; transition:all .2s;">
+                        <div style="font-size:1.2rem;">⚡</div>
+                        <div style="font-size:.84rem; font-weight:700;">Général</div>
+                    </div>
+                </div>
+                <input type="hidden" id="ope_section">
+            </div>
+
+            <!-- Catégorie optionnelle -->
+            <div class="col-12">
+                <label class="form-label fw-bold">Catégorie <span style="font-size:.78rem; color:#9ca3af;">(optionnel)</span></label>
+                <input type="text" class="form-control" id="ope_categorie" placeholder="Ex: Facture, Loyer, Transport...">
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="resetFormOpe()">Annuler</button>
+        <button type="button" class="btn btn-ks" id="btnSaveOpe" onclick="soumettreOpe()" disabled>
+            <i class="bi bi-check-lg me-1"></i>Enregistrer l'opération
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+let opeTypeChoisi    = '';
+let opeSectionChoisie = '';
+
+function selectTypeOpe(type) {
+    opeTypeChoisi = type;
+    const isRec = type === 'Recettes';
+    const btnR = document.getElementById('ope-btn-recette');
+    const btnD = document.getElementById('ope-btn-depense');
+    btnR.style.border      = isRec  ? '2px solid #00b894' : '2px solid #e5e7eb';
+    btnR.style.background  = isRec  ? '#f0fdf4' : '#fff';
+    btnD.style.border      = !isRec ? '2px solid #e94560' : '2px solid #e5e7eb';
+    btnD.style.background  = !isRec ? '#fff5f7' : '#fff';
+    document.getElementById('ope_type').value = type;
+    verifierOpe();
+}
+
+function selectSectionOpe(section) {
+    opeSectionChoisie = section;
+    document.getElementById('ope_section').value = section;
+    const map = {'Studio':'studio','Sonorisation':'sono','Général':'gen'};
+    ['studio','sono','gen'].forEach(s => {
+        const el = document.getElementById('ope-sec-'+s);
+        el.style.border     = '2px solid #e5e7eb';
+        el.style.background = '#fff';
+    });
+    const sel = document.getElementById('ope-sec-'+map[section]);
+    sel.style.border     = '2px solid #0984e3';
+    sel.style.background = '#eff6ff';
+    verifierOpe();
+}
+
+function verifierOpe() {
+    const ok = opeTypeChoisi && opeSectionChoisie &&
+               document.getElementById('ope_service').value.trim() &&
+               parseFloat(document.getElementById('ope_montant').value) > 0;
+    document.getElementById('btnSaveOpe').disabled = !ok;
+
+    const val = parseFloat(document.getElementById('ope_montant').value);
+    const aff = document.getElementById('ope_montant_affiche');
+    aff.textContent = (!isNaN(val) && val > 0) ? '→ ' + Math.round(val).toLocaleString('fr-FR') + ' FCFA' : '';
+}
+
+function resetFormOpe() {
+    opeTypeChoisi = ''; opeSectionChoisie = '';
+    document.getElementById('ope_type').value    = '';
+    document.getElementById('ope_section').value = '';
+    document.getElementById('ope_client').value  = '';
+    document.getElementById('ope_selectClient').value = '';
+    document.getElementById('ope_service').value  = '';
+    document.getElementById('ope_montant').value  = '';
+    document.getElementById('ope_categorie').value= '';
+    document.getElementById('ope_montant_affiche').textContent = '';
+    document.getElementById('flashOpe').style.display = 'none';
+    document.getElementById('btnSaveOpe').disabled = true;
+    // Reset visuels
+    ['ope-btn-recette','ope-btn-depense'].forEach(id => {
+        document.getElementById(id).style.border = '2px solid #e5e7eb';
+        document.getElementById(id).style.background = '#fff';
+    });
+    ['studio','sono','gen'].forEach(s => {
+        document.getElementById('ope-sec-'+s).style.border = '2px solid #e5e7eb';
+        document.getElementById('ope-sec-'+s).style.background = '#fff';
+    });
+}
+
+function soumettreOpe() {
+    const flash = document.getElementById('flashOpe');
+    const msg   = document.getElementById('flashOpeMsg');
+    const btn   = document.getElementById('btnSaveOpe');
+
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Enregistrement...';
+
+    const fd = new FormData();
+    fd.append('type_operation', document.getElementById('ope_type').value);
+    fd.append('nom_client',     document.getElementById('ope_client').value.trim());
+    fd.append('service',        document.getElementById('ope_service').value.trim());
+    fd.append('montant_ttc',    document.getElementById('ope_montant').value);
+    fd.append('section',        document.getElementById('ope_section').value);
+    fd.append('categorie',      document.getElementById('ope_categorie').value.trim());
+
+    fetch('/api/operations/nouvelle', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer l'opération';
+            if (d.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalNouvelleOpe')).hide();
+                resetFormOpe();
+                setTimeout(() => location.reload(), 400);
+            } else {
+                msg.textContent = d.error || 'Erreur inconnue';
+                flash.style.display = 'block';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer l'opération';
+            msg.textContent = 'Erreur réseau'; flash.style.display = 'block';
+        });
+}
+</script>
 </body>
 </html>

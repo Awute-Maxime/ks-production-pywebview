@@ -194,9 +194,9 @@
         <div class="d-flex gap-2 align-items-center">
             <span class="badge bg-secondary">{{ role }}</span>
             {% if role != 'Lecture seule' %}
-            <a href="/factures/nouvelle" class="btn btn-sm btn-ks">
+            <button class="btn btn-sm btn-ks" data-bs-toggle="modal" data-bs-target="#modalNouvelleFacture">
                 <i class="bi bi-plus-lg me-1"></i>Nouvelle Facture
-            </a>
+            </button>
             {% endif %}
             <!-- CLOCHE -->
             <div class="position-relative">
@@ -541,5 +541,271 @@ document.addEventListener('DOMContentLoaded', initBadgeAlertes);
         if (icon) icon.className = 'bi bi-list';
     }
     </script>
+
+<!-- ══ MODAL NOUVELLE FACTURE ════════════════════════════════════ -->
+<div class="modal fade" id="modalNouvelleFacture" tabindex="-1" data-bs-backdrop="static">
+<div class="modal-dialog modal-xl" style="max-width:960px;">
+<div class="modal-content" style="max-height:90vh; display:flex; flex-direction:column;">
+    <div class="modal-header" style="background:#1a1a2e; color:#fff; flex-shrink:0;">
+        <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Nouvelle Facture</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal" onclick="resetFormFacture()"></button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto; flex:1; padding:20px 24px;">
+
+        <!-- Flash erreur inline -->
+        <div id="flashFacture" style="display:none;" class="alert alert-danger alert-dismissible mb-3">
+            <span id="flashFactureMsg"></span>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">N° Facture</label>
+                <input type="text" class="form-control" id="fac_numero" value="{{ numero_auto }}" readonly style="background:#f8f9fa; font-weight:700; color:#e94560;">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Date</label>
+                <input type="date" class="form-control" id="fac_date" value="{{ today }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Section <span class="text-danger">*</span></label>
+                <select class="form-select" id="fac_section" required>
+                    <option value="">-- Choisir --</option>
+                    <option value="Studio">Studio</option>
+                    <option value="Sonorisation">Sonorisation</option>
+                    <option value="Général">Général</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">État paiement</label>
+                <select class="form-select" id="fac_etat" onchange="togglePartielFac()">
+                    <option value="Non Payer">Non Payée</option>
+                    <option value="Partiel">Paiement partiel</option>
+                    <option value="Payer">Payée</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Client <span class="text-danger">*</span></label>
+                <div class="d-flex gap-2">
+                    <select class="form-select" id="fac_selectClient" onchange="document.getElementById('fac_client').value=this.value">
+                        <option value="">-- Client existant --</option>
+                        {% for client in clients %}
+                        <option value="{{ client.nom }}">{{ client.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" class="form-control" id="fac_client" placeholder="Ou saisir..." required>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">TVA</label>
+                <select class="form-select" id="fac_tva" onchange="updateRecapFac()">
+                    <option value="18">TVA 18%</option>
+                    <option value="0">Sans TVA (0%)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Mode paiement</label>
+                <select class="form-select" id="fac_mode">
+                    <option value="Espece">Espèce</option>
+                    <option value="Carte Bancaire">Carte Bancaire</option>
+                    <option value="Virement">Virement</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                </select>
+            </div>
+            <!-- Bloc partiel -->
+            <div class="col-12" id="facBlocPartiel" style="display:none;">
+                <div style="background:#fff8e1; border:1.5px solid #ffc107; border-radius:10px; padding:12px 16px;">
+                    <div style="font-size:.75rem; font-weight:700; color:#856404; margin-bottom:8px;">Montant avancé (FCFA)</div>
+                    <input type="number" class="form-control" id="fac_avance" placeholder="Montant reçu..." min="0" oninput="updateRecapFac()">
+                </div>
+            </div>
+        </div>
+
+        <!-- Suggestions services -->
+        <div style="margin-bottom:8px; display:flex; flex-wrap:wrap; gap:6px;">
+            {% for svc in services_list %}
+            <span onclick="ajouterLigneFac('{{ svc.libelle }}', {{ svc.prix }})"
+                  style="background:#f0f2f5; border:1px solid #dee2e6; border-radius:20px; padding:3px 10px; font-size:.75rem; cursor:pointer; color:#444; transition:all .15s;"
+                  onmouseover="this.style.background='#1a1a2e';this.style.color='#fff'"
+                  onmouseout="this.style.background='#f0f2f5';this.style.color='#444'">
+                + {{ svc.libelle }}
+            </span>
+            {% endfor %}
+        </div>
+
+        <!-- Table lignes -->
+        <div class="table-responsive mb-3">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#1a1a2e; color:#fff;">
+                        <th style="padding:9px 10px; font-size:.72rem; text-transform:uppercase;">Description</th>
+                        <th style="padding:9px 10px; font-size:.72rem; text-align:center;">Qté</th>
+                        <th style="padding:9px 10px; font-size:.72rem; text-align:right;">Prix HT (FCFA)</th>
+                        <th style="padding:9px 10px; font-size:.72rem; text-align:right;">Total HT (FCFA)</th>
+                        <th style="width:40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="facLignesBody">
+                    <tr class="fac-ligne">
+                        <td style="padding:6px 6px;"><input type="text" class="form-control form-control-sm fac-svc" placeholder="Service..." required></td>
+                        <td style="padding:6px 6px;"><input type="number" class="form-control form-control-sm fac-qty" value="1" min="1" style="text-align:center;"></td>
+                        <td style="padding:6px 6px;"><input type="number" class="form-control form-control-sm fac-pu" placeholder="0" min="0" step="any" style="text-align:right;"></td>
+                        <td style="padding:6px 6px;"><input type="text" class="form-control form-control-sm fac-tot" placeholder="0" readonly style="text-align:right;background:#f8f9fa;font-weight:600;"></td>
+                        <td style="padding:6px 6px; text-align:center;"><button type="button" onclick="suppLigneFac(this)" style="background:#fdecea;color:#d63031;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;">✕</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <button type="button" onclick="ajouterLigneFac()" style="background:#e8f5e9;color:#00b894;border:1.5px dashed #00b894;border-radius:8px;padding:7px 16px;font-size:.84rem;font-weight:600;cursor:pointer;margin-bottom:16px;">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+        </button>
+
+        <!-- Récap -->
+        <div style="background:#f8f9fa; border-radius:10px; padding:14px 18px; border-left:4px solid #e94560;">
+            <div style="display:flex; justify-content:space-between; font-size:.88rem; padding:4px 0;">
+                <span style="color:#6c757d;">Sous-total HT</span><strong id="facRecapHT">0 FCFA</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:.88rem; padding:4px 0;">
+                <span style="color:#6c757d;">TVA (<span id="facTauxLabel">18</span>%)</span><strong id="facRecapTVA">0 FCFA</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:800; border-top:1.5px solid #dee2e6; margin-top:6px; padding-top:8px;">
+                <span>TOTAL TTC</span><span id="facRecapTTC" style="color:#e94560;">0 FCFA</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer" style="flex-shrink:0;">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="resetFormFacture()">Annuler</button>
+        <button type="button" class="btn" style="background:#e94560;color:#fff;border:none;" id="btnSaveFacture" onclick="soumettreFacture()">
+            <i class="bi bi-check-lg me-1"></i>Enregistrer la facture
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+function togglePartielFac() {
+    const etat = document.getElementById('fac_etat').value;
+    document.getElementById('facBlocPartiel').style.display = etat === 'Partiel' ? 'block' : 'none';
+}
+
+function updateRecapFac() {
+    const tvaRate = parseFloat(document.getElementById('fac_tva').value) / 100 || 0;
+    document.getElementById('facTauxLabel').textContent = document.getElementById('fac_tva').value;
+    let totalHT = 0;
+    document.querySelectorAll('.fac-ligne').forEach(row => {
+        const pu  = parseFloat(row.querySelector('.fac-pu').value) || 0;
+        const qty = parseInt(row.querySelector('.fac-qty').value) || 1;
+        const ht  = pu * qty;
+        row.querySelector('.fac-tot').value = ht > 0 ? Math.round(ht).toLocaleString('fr-FR') : '';
+        totalHT += ht;
+    });
+    const tva = totalHT * tvaRate;
+    const ttc = totalHT + tva;
+    const fmt = v => Math.round(v).toLocaleString('fr-FR') + ' FCFA';
+    document.getElementById('facRecapHT').textContent  = fmt(totalHT);
+    document.getElementById('facRecapTVA').textContent = fmt(tva);
+    document.getElementById('facRecapTTC').textContent = fmt(ttc);
+}
+
+function attachFacListeners(row) {
+    row.querySelector('.fac-pu').addEventListener('input', updateRecapFac);
+    row.querySelector('.fac-qty').addEventListener('input', updateRecapFac);
+}
+
+function ajouterLigneFac(svc='', prix=0) {
+    const tbody = document.getElementById('facLignesBody');
+    const tr = document.createElement('tr');
+    tr.className = 'fac-ligne';
+    tr.innerHTML = `
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm fac-svc" value="${svc}" placeholder="Service..." required></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm fac-qty" value="1" min="1" style="text-align:center;"></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm fac-pu" value="${prix||''}" placeholder="0" min="0" step="any" style="text-align:right;"></td>
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm fac-tot" readonly style="text-align:right;background:#f8f9fa;font-weight:600;"></td>
+        <td style="padding:6px;text-align:center;"><button type="button" onclick="suppLigneFac(this)" style="background:#fdecea;color:#d63031;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;">✕</button></td>`;
+    tbody.appendChild(tr);
+    attachFacListeners(tr);
+    updateRecapFac();
+}
+
+function suppLigneFac(btn) {
+    if (document.querySelectorAll('.fac-ligne').length <= 1) { alert('Au moins une ligne requise.'); return; }
+    btn.closest('tr').remove(); updateRecapFac();
+}
+
+function resetFormFacture() {
+    document.getElementById('fac_client').value   = '';
+    document.getElementById('fac_selectClient').value = '';
+    document.getElementById('fac_section').value  = '';
+    document.getElementById('fac_etat').value     = 'Non Payer';
+    document.getElementById('fac_mode').value     = 'Espece';
+    document.getElementById('fac_tva').value      = '18';
+    document.getElementById('facBlocPartiel').style.display = 'none';
+    document.getElementById('flashFacture').style.display = 'none';
+    // Reset lignes
+    const tbody = document.getElementById('facLignesBody');
+    tbody.innerHTML = `<tr class="fac-ligne">
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm fac-svc" placeholder="Service..." required></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm fac-qty" value="1" min="1" style="text-align:center;"></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm fac-pu" placeholder="0" min="0" step="any" style="text-align:right;"></td>
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm fac-tot" readonly style="text-align:right;background:#f8f9fa;font-weight:600;"></td>
+        <td style="padding:6px;text-align:center;"><button type="button" onclick="suppLigneFac(this)" style="background:#fdecea;color:#d63031;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;">✕</button></td>
+    </tr>`;
+    document.querySelectorAll('.fac-ligne').forEach(attachFacListeners);
+    updateRecapFac();
+}
+
+function soumettreFacture() {
+    const client  = document.getElementById('fac_client').value.trim();
+    const section = document.getElementById('fac_section').value;
+    const flash   = document.getElementById('flashFacture');
+    const flashMsg= document.getElementById('flashFactureMsg');
+
+    if (!client)  { flashMsg.textContent='Veuillez renseigner le client.'; flash.style.display='block'; return; }
+    if (!section) { flashMsg.textContent='Veuillez choisir la section.'; flash.style.display='block'; return; }
+
+    const lignes = document.querySelectorAll('.fac-ligne');
+    const btn = document.getElementById('btnSaveFacture');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Enregistrement...';
+
+    const fd = new FormData();
+    fd.append('numero',        document.getElementById('fac_numero').value);
+    fd.append('nom_client',    client);
+    fd.append('section',       section);
+    fd.append('etat_paiement', document.getElementById('fac_etat').value);
+    fd.append('mode_paiement', document.getElementById('fac_mode').value);
+    fd.append('tva_taux',      document.getElementById('fac_tva').value);
+    fd.append('montant_avance',document.getElementById('fac_avance')?.value || 0);
+    lignes.forEach(row => {
+        fd.append('service[]',       row.querySelector('.fac-svc').value);
+        fd.append('prix_unitaire[]', row.querySelector('.fac-pu').value || 0);
+        fd.append('quantite[]',      row.querySelector('.fac-qty').value || 1);
+    });
+
+    fetch('/api/factures/nouvelle', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer la facture';
+            if (d.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalNouvelleFacture')).hide();
+                resetFormFacture();
+                setTimeout(() => location.reload(), 500);
+            } else {
+                flashMsg.textContent = d.error || 'Erreur inconnue';
+                flash.style.display = 'block';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer la facture';
+            flashMsg.textContent = 'Erreur réseau'; flash.style.display = 'block';
+        });
+}
+
+// Init listeners sur première ligne
+document.querySelectorAll('.fac-ligne').forEach(attachFacListeners);
+</script>
 </body>
 </html>

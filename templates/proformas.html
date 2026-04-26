@@ -163,9 +163,9 @@
         </div>
         <div class="d-flex gap-2 align-items-center">
             {% if role != 'Lecture seule' %}
-            <a href="/factures/proforma" class="btn btn-sm" style="background:var(--ks-purple); color:#fff; border:none;">
+            <button class="btn btn-sm" style="background:var(--ks-purple); color:#fff; border:none;" data-bs-toggle="modal" data-bs-target="#modalNouvelleProforma">
                 <i class="bi bi-plus-lg me-1"></i>Nouvelle Proforma
-            </a>
+            </button>
             {% endif %}
             <!-- CLOCHE ALERTES -->
             <div class="position-relative">
@@ -433,5 +433,234 @@ document.addEventListener('DOMContentLoaded', initBadgeAlertes);
         if (icon) icon.className = 'bi bi-list';
     }
     </script>
+
+<!-- ══ MODAL NOUVELLE PROFORMA ═══════════════════════════════════ -->
+<div class="modal fade" id="modalNouvelleProforma" tabindex="-1" data-bs-backdrop="static">
+<div class="modal-dialog modal-xl" style="max-width:960px;">
+<div class="modal-content" style="max-height:90vh; display:flex; flex-direction:column;">
+    <div class="modal-header" style="background:#1a1a2e; color:#fff; flex-shrink:0;">
+        <h5 class="modal-title"><i class="bi bi-file-earmark-plus me-2"></i>Nouvelle Proforma</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal" onclick="resetFormProforma()"></button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto; flex:1; padding:20px 24px;">
+
+        <div id="flashProforma" style="display:none;" class="alert alert-danger mb-3">
+            <span id="flashProformaMsg"></span>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">N° Proforma</label>
+                <input type="text" class="form-control" id="pro_numero" value="{{ numero_auto }}" readonly style="background:#f8f9fa; font-weight:700; color:#6c5ce7;">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Section <span class="text-danger">*</span></label>
+                <select class="form-select" id="pro_section" required>
+                    <option value="">-- Choisir --</option>
+                    <option value="Studio">Studio</option>
+                    <option value="Sonorisation">Sonorisation</option>
+                    <option value="Général">Général</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">TVA</label>
+                <select class="form-select" id="pro_tva" onchange="updateRecapPro()">
+                    <option value="18">TVA 18%</option>
+                    <option value="0">Sans TVA (0%)</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-bold">Mode paiement</label>
+                <select class="form-select" id="pro_mode">
+                    <option value="Espece">Espèce</option>
+                    <option value="Carte Bancaire">Carte Bancaire</option>
+                    <option value="Virement">Virement</option>
+                    <option value="Mobile Money">Mobile Money</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold">Client <span class="text-danger">*</span></label>
+                <div class="d-flex gap-2">
+                    <select class="form-select" id="pro_selectClient" onchange="document.getElementById('pro_client').value=this.value">
+                        <option value="">-- Client existant --</option>
+                        {% for client in clients %}
+                        <option value="{{ client.nom }}">{{ client.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" class="form-control" id="pro_client" placeholder="Ou saisir..." required>
+                </div>
+            </div>
+        </div>
+
+        <!-- Suggestions -->
+        <div style="margin-bottom:8px; display:flex; flex-wrap:wrap; gap:6px;">
+            {% for svc in services_list %}
+            <span onclick="ajouterLignePro('{{ svc.libelle }}', {{ svc.prix }})"
+                  style="background:#f0f2f5; border:1px solid #dee2e6; border-radius:20px; padding:3px 10px; font-size:.75rem; cursor:pointer; color:#444;"
+                  onmouseover="this.style.background='#1a1a2e';this.style.color='#fff'"
+                  onmouseout="this.style.background='#f0f2f5';this.style.color='#444'">
+                + {{ svc.libelle }}
+            </span>
+            {% endfor %}
+        </div>
+
+        <!-- Lignes -->
+        <div class="table-responsive mb-3">
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="background:#1a1a2e; color:#fff;">
+                        <th style="padding:9px 10px; font-size:.72rem; text-transform:uppercase;">Description</th>
+                        <th style="padding:9px 10px; font-size:.72rem; text-align:center;">Qté</th>
+                        <th style="padding:9px 10px; font-size:.72rem; text-align:right;">Prix HT (FCFA)</th>
+                        <th style="padding:9px 10px; font-size:.72rem; text-align:right;">Total HT</th>
+                        <th style="width:40px;"></th>
+                    </tr>
+                </thead>
+                <tbody id="proLignesBody">
+                    <tr class="pro-ligne">
+                        <td style="padding:6px;"><input type="text" class="form-control form-control-sm pro-svc" placeholder="Service..." required></td>
+                        <td style="padding:6px;"><input type="number" class="form-control form-control-sm pro-qty" value="1" min="1" style="text-align:center;"></td>
+                        <td style="padding:6px;"><input type="number" class="form-control form-control-sm pro-pu" placeholder="0" min="0" step="any" style="text-align:right;"></td>
+                        <td style="padding:6px;"><input type="text" class="form-control form-control-sm pro-tot" readonly style="text-align:right;background:#f8f9fa;font-weight:600;"></td>
+                        <td style="padding:6px;text-align:center;"><button type="button" onclick="suppLignePro(this)" style="background:#fdecea;color:#d63031;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;">✕</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <button type="button" onclick="ajouterLignePro()" style="background:#e8f5e9;color:#00b894;border:1.5px dashed #00b894;border-radius:8px;padding:7px 16px;font-size:.84rem;font-weight:600;cursor:pointer;margin-bottom:16px;">
+            <i class="bi bi-plus-lg me-1"></i>Ajouter une ligne
+        </button>
+
+        <!-- Récap -->
+        <div style="background:#f8f9fa; border-radius:10px; padding:14px 18px; border-left:4px solid #6c5ce7;">
+            <div style="display:flex; justify-content:space-between; font-size:.88rem; padding:4px 0;">
+                <span style="color:#6c757d;">Sous-total HT</span><strong id="proRecapHT">0 FCFA</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:.88rem; padding:4px 0;">
+                <span style="color:#6c757d;">TVA (<span id="proTauxLabel">18</span>%)</span><strong id="proRecapTVA">0 FCFA</strong>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:800; border-top:1.5px solid #dee2e6; margin-top:6px; padding-top:8px;">
+                <span>TOTAL TTC ESTIMÉ</span><span id="proRecapTTC" style="color:#6c5ce7;">0 FCFA</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-footer" style="flex-shrink:0;">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" onclick="resetFormProforma()">Annuler</button>
+        <button type="button" class="btn" style="background:#6c5ce7;color:#fff;border:none;" id="btnSaveProforma" onclick="soumettreProforma()">
+            <i class="bi bi-check-lg me-1"></i>Enregistrer la proforma
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+function updateRecapPro() {
+    const tvaRate = parseFloat(document.getElementById('pro_tva').value) / 100 || 0;
+    document.getElementById('proTauxLabel').textContent = document.getElementById('pro_tva').value;
+    let totalHT = 0;
+    document.querySelectorAll('.pro-ligne').forEach(row => {
+        const pu  = parseFloat(row.querySelector('.pro-pu').value) || 0;
+        const qty = parseInt(row.querySelector('.pro-qty').value) || 1;
+        const ht  = pu * qty;
+        row.querySelector('.pro-tot').value = ht > 0 ? Math.round(ht).toLocaleString('fr-FR') : '';
+        totalHT += ht;
+    });
+    const tva = totalHT * tvaRate;
+    const ttc = totalHT + tva;
+    const fmt = v => Math.round(v).toLocaleString('fr-FR') + ' FCFA';
+    document.getElementById('proRecapHT').textContent  = fmt(totalHT);
+    document.getElementById('proRecapTVA').textContent = fmt(tva);
+    document.getElementById('proRecapTTC').textContent = fmt(ttc);
+}
+
+function attachProListeners(row) {
+    row.querySelector('.pro-pu').addEventListener('input', updateRecapPro);
+    row.querySelector('.pro-qty').addEventListener('input', updateRecapPro);
+}
+
+function ajouterLignePro(svc='', prix=0) {
+    const tbody = document.getElementById('proLignesBody');
+    const tr = document.createElement('tr');
+    tr.className = 'pro-ligne';
+    tr.innerHTML = `
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm pro-svc" value="${svc}" placeholder="Service..."></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm pro-qty" value="1" min="1" style="text-align:center;"></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm pro-pu" value="${prix||''}" placeholder="0" min="0" step="any" style="text-align:right;"></td>
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm pro-tot" readonly style="text-align:right;background:#f8f9fa;font-weight:600;"></td>
+        <td style="padding:6px;text-align:center;"><button type="button" onclick="suppLignePro(this)" style="background:#fdecea;color:#d63031;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;">✕</button></td>`;
+    tbody.appendChild(tr);
+    attachProListeners(tr);
+    updateRecapPro();
+}
+
+function suppLignePro(btn) {
+    if (document.querySelectorAll('.pro-ligne').length <= 1) { alert('Au moins une ligne requise.'); return; }
+    btn.closest('tr').remove(); updateRecapPro();
+}
+
+function resetFormProforma() {
+    document.getElementById('pro_client').value = '';
+    document.getElementById('pro_selectClient').value = '';
+    document.getElementById('pro_section').value = '';
+    document.getElementById('flashProforma').style.display = 'none';
+    const tbody = document.getElementById('proLignesBody');
+    tbody.innerHTML = `<tr class="pro-ligne">
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm pro-svc" placeholder="Service..."></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm pro-qty" value="1" min="1" style="text-align:center;"></td>
+        <td style="padding:6px;"><input type="number" class="form-control form-control-sm pro-pu" placeholder="0" min="0" step="any" style="text-align:right;"></td>
+        <td style="padding:6px;"><input type="text" class="form-control form-control-sm pro-tot" readonly style="text-align:right;background:#f8f9fa;font-weight:600;"></td>
+        <td style="padding:6px;text-align:center;"><button type="button" onclick="suppLignePro(this)" style="background:#fdecea;color:#d63031;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;">✕</button></td>
+    </tr>`;
+    document.querySelectorAll('.pro-ligne').forEach(attachProListeners);
+    updateRecapPro();
+}
+
+function soumettreProforma() {
+    const client  = document.getElementById('pro_client').value.trim();
+    const section = document.getElementById('pro_section').value;
+    const flash   = document.getElementById('flashProforma');
+    const msg     = document.getElementById('flashProformaMsg');
+    if (!client)  { msg.textContent='Veuillez renseigner le client.'; flash.style.display='block'; return; }
+    if (!section) { msg.textContent='Veuillez choisir la section.'; flash.style.display='block'; return; }
+
+    const btn = document.getElementById('btnSaveProforma');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Enregistrement...';
+
+    const fd = new FormData();
+    fd.append('nom_client',    client);
+    fd.append('section',       section);
+    fd.append('mode_paiement', document.getElementById('pro_mode').value);
+    fd.append('tva_taux',      document.getElementById('pro_tva').value);
+    document.querySelectorAll('.pro-ligne').forEach(row => {
+        fd.append('service[]',       row.querySelector('.pro-svc').value);
+        fd.append('prix_unitaire[]', row.querySelector('.pro-pu').value || 0);
+        fd.append('quantite[]',      row.querySelector('.pro-qty').value || 1);
+    });
+
+    fetch('/api/proformas/nouvelle', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer la proforma';
+            if (d.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalNouvelleProforma')).hide();
+                resetFormProforma();
+                setTimeout(() => location.reload(), 500);
+            } else {
+                msg.textContent = d.error || 'Erreur inconnue'; flash.style.display = 'block';
+            }
+        })
+        .catch(() => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer la proforma';
+            msg.textContent = 'Erreur réseau'; flash.style.display = 'block';
+        });
+}
+
+document.querySelectorAll('.pro-ligne').forEach(attachProListeners);
+</script>
 </body>
 </html>
