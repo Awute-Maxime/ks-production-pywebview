@@ -324,7 +324,16 @@
                         <td>{{ f.date.strftime('%d/%m/%Y') }}</td>
                         <td>{{ f.nom_client }}</td>
                         <td style="max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ f.service }}</td>
-                        <td class="text-end fw-bold">{{ "{:,.0f}".format(f.montant_ttc).replace(',', ' ') }} FCFA</td>
+                        <td class="text-end">
+                            <div style="font-weight:800; font-size:.9rem;">{{ "{:,.0f}".format(f.montant_ttc).replace(',', ' ') }} FCFA</div>
+                            {% if f.etat_paiement == 'Partiel' %}
+                            <div style="font-size:.7rem; color:#f59e0b; margin-top:2px;">
+                                Reste : {{ "{:,.0f}".format(f.reste_du).replace(',', ' ') }} FCFA
+                            </div>
+                            {% elif f.etat_paiement == 'Payer' %}
+                            <div style="font-size:.7rem; color:#00b894; margin-top:2px;">✓ Soldé</div>
+                            {% endif %}
+                        </td>
                         <td>{{ f.mode_paiement }}</td>
                         <td>
                             {% if f.etat_paiement == 'Payer' %}<span class="badge-payee">✓ PAYÉE</span>
@@ -342,12 +351,12 @@
                         </td>
                         <td>
                             <div class="actions-wrap">
-                                <a href="/factures/apercu/{{ f.id }}" target="_blank" class="btn-apercu"><i class="bi bi-eye"></i> Aperçu</a>
+                                <button onclick="ouvrirApercu('factures/apercu/{{ f.id }}', 'Aperçu Facture')" class="btn-apercu"><i class="bi bi-eye"></i> Aperçu</button>
                                 {% if f.etat_paiement != 'Payer' %}
-                                <a href="/relances/pdf/{{ f.id }}" target="_blank" 
+                                <button onclick="ouvrirApercu('relances/pdf/{{ f.id }}', 'Relance')" 
                                    class="btn-apercu" style="background:#f59e0b;">
                                     <i class="bi bi-bell"></i> Relance
-                                </a>
+                                </button>
                                 {% endif %}
                                 {% if f.etat_paiement != 'Payer' and role != 'Lecture seule' %}
                                 <a href="/factures/paiement/{{ f.id }}" class="btn-payer"><i class="bi bi-cash-coin"></i> Payer</a>
@@ -806,6 +815,10 @@ function soumettreFacture() {
 
 // Init listeners sur première ligne
 document.querySelectorAll('.fac-ligne').forEach(attachFacListeners);
+    function ouvrirApercu(url, titre) {
+        fetch('/api/open-window?url=' + encodeURIComponent('/' + url) + '&title=' + encodeURIComponent(titre))
+            .catch(() => {});
+    }
 </script>
 </body>
 </html>

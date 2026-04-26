@@ -364,7 +364,7 @@
                         </div>
                     </div>
                     {% if role != 'Lecture seule' %}
-                    <a href="/agenda/fiche-pdf/{{ ev.id }}" target="_blank"
+                    <a onclick="ouvrirFichePDF({{ ev.id }})" href="#"
                        style="background:#fee2e2; border:none; color:#e94560; border-radius:6px; width:26px; height:26px; display:inline-flex; align-items:center; justify-content:center; text-decoration:none; font-size:.72rem;"
                        title="Fiche PDF">
                         <i class="bi bi-file-earmark-pdf"></i>
@@ -652,9 +652,9 @@
                                 <span style="color:#0984e3;font-weight:700;"><i class="bi bi-receipt me-1"></i>Recettes (facture)</span>
                                 <strong id="depRecettes" style="color:#0984e3;">0 FCFA</strong>
                             </div>
-                            <div style="display:flex; justify-content:space-between; background:#fff; border-radius:6px; padding:5px 8px; border:1px solid #e5e7eb;">
-                                <span style="font-weight:800; color:#1a1a2e;"><i class="bi bi-calculator me-1"></i>Solde net</span>
-                                <strong id="depSolde" style="color:#1a1a2e;">0 FCFA</strong>
+                            <div style="display:flex; justify-content:space-between; background:#f0fdf4; border-radius:6px; padding:5px 8px; border:1px solid #bbf7d0;">
+                                <span id="depSoldeLabel" style="font-weight:800; color:#1a1a2e;"><i class="bi bi-calculator me-1"></i>Bénéfice net</span>
+                                <strong id="depSolde" style="color:#065f46;">0 FCFA</strong>
                             </div>
                         </div>
                     </div>
@@ -781,11 +781,11 @@ function voirDetail(id, titre, date, hd, hf, client, service, section, lieu, sta
     // Lien facture
     const factureSpan = document.getElementById('detailFacture');
     if (factureId) {
-        factureSpan.innerHTML = `<a href="/factures/apercu/${factureId}" target="_blank"
-            style="color:#e94560; font-weight:600; text-decoration:none;">
+        factureSpan.innerHTML = `<button onclick="ouvrirApercuFacture(${factureId})"
+            style="color:#e94560; font-weight:600; text-decoration:none; background:none; border:none; cursor:pointer; padding:0;">
             <i class="bi bi-receipt me-1"></i>${factureNum}
             <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.7rem;"></i>
-        </a>`;
+        </button>`;
     } else {
         factureSpan.innerHTML = '<span style="color:#9ca3af; font-size:.78rem;">Aucune facture liée</span>';
     }
@@ -831,13 +831,18 @@ function voirDetail(id, titre, date, hd, hf, client, service, section, lieu, sta
 
     chargerTechniciens(id, evtDateCourante);
     chargerMateriel(id);
-    chargerDepenses(id);
-    // Charger le montant de la facture liée pour affichage dans dépenses
+    // Charger d'abord le montant facture PUIS les dépenses (pour afficher le solde)
     if (factureId) {
         fetch('/api/facture-montant/' + factureId)
             .then(r => r.json())
-            .then(d => { evtFactureMontant = d.montant_ttc || 0; })
-            .catch(() => {});
+            .then(d => {
+                evtFactureMontant = d.montant_ttc || 0;
+                chargerDepenses(id);
+            })
+            .catch(() => { evtFactureMontant = 0; chargerDepenses(id); });
+    } else {
+        evtFactureMontant = 0;
+        chargerDepenses(id);
     }
     new bootstrap.Modal(document.getElementById('modalDetail')).show();
 }
@@ -1002,6 +1007,11 @@ function sauvegarderMateriel() {
 
 
 // ── Dépenses de prestation ────────────────────────────────────
+function ouvrirApercuFacture(facId) {
+    fetch('/api/open-window?url=' + encodeURIComponent('/factures/apercu/' + facId) + '&title=Aperçu+Facture')
+        .catch(() => {});
+}
+
 function chargerDepenses(evtId) {
     fetch('/api/depenses/' + evtId)
         .then(r => r.json())
@@ -1040,8 +1050,17 @@ function chargerDepenses(evtId) {
                     const solde = evtFactureMontant - data.total_paye;
                     document.getElementById('depRecettes').textContent = fmt(evtFactureMontant);
                     const soldeEl = document.getElementById('depSolde');
-                    soldeEl.textContent = fmt(solde);
-                    soldeEl.style.color = solde >= 0 ? '#065f46' : '#991b1b';
+                    soldeEl.textContent = fmt(Math.abs(solde));
+                    if (solde >= 0) {
+                        soldeEl.style.color = '#065f46';
+                        soldeEl.parentElement.style.background = '#f0fdf4';
+                        soldeEl.parentElement.style.borderColor = '#bbf7d0';
+                    } else {
+                        soldeEl.style.color = '#991b1b';
+                        soldeEl.parentElement.style.background = '#fef2f2';
+                        soldeEl.parentElement.style.borderColor = '#fecaca';
+                    }
+                    document.getElementById('depSoldeLabel').textContent = solde >= 0 ? '✅ Bénéfice net' : '❌ Déficit';
                     recWrap.style.display = 'block';
                 } else {
                     recWrap.style.display = 'none';

@@ -2165,35 +2165,47 @@ def importer_donnees():
         # ── Importer les dépenses prestations ──
         nb_depenses = 0
         for d in data.get('depenses', []):
-            # Chercher la prestation associée (par titre ou premier événement dispo)
+            # Trouver la prestation associée par titre si possible
             evt = None
             if d.get('evenement_titre'):
                 evt = Evenement.query.filter_by(titre=d['evenement_titre']).first()
-            if not evt:
-                evt = Evenement.query.first()  # Associer au premier evt si absent
-
-            if not evt:
-                # Pas d'événement du tout → créer un événement générique
-                from datetime import date as _date
-                evt_gen = Evenement.query.filter_by(titre='Import Dépenses').first()
-                if not evt_gen:
-                    evt_gen = Evenement(
-                        titre='Import Dépenses', nom_client='—',
-                        date=_date.today(), section='Général', statut='Confirmé',
-                    )
-                    db.session.add(evt_gen)
-                    db.session.flush()
-                evt = evt_gen
-
             db.session.add(DepensePrestation(
                 type_depense  = d.get('type_depense', 'Autre'),
                 description   = d.get('description', ''),
                 beneficiaire  = d.get('beneficiaire', ''),
                 montant       = d.get('montant', 0),
                 statut        = d.get('statut', 'En attente'),
-                evenement_id  = evt.id,
+                evenement_id  = evt.id if evt else None,
             ))
             nb_depenses += 1
+        db.session.commit()
+
+        # ── Importer les archives ──
+        nb_archives = 0
+        for a in data.get('archives', []):
+            # Retrouver l'événement associé
+            evt = None
+            if a.get('evenement_titre'):
+                evt = Evenement.query.filter_by(titre=a['evenement_titre']).first()
+            if not evt:
+                continue  # Pas d'archive sans événement
+
+            # Vérifier si déjà archivé
+            if PrestationArchivee.query.filter_by(evenement_id=evt.id).first():
+                continue
+
+            date_arch = datetime.strptime(a['date_archivage'], '%Y-%m-%d') if a.get('date_archivage') else datetime.now()
+            db.session.add(PrestationArchivee(
+                evenement_id    = evt.id,
+                date_archivage  = date_arch,
+                total_recettes  = a.get('total_recettes', 0),
+                total_depenses  = a.get('total_depenses', 0),
+                benefice_net    = a.get('benefice_net', 0),
+                nb_depenses     = a.get('nb_depenses', 0),
+                archive_par     = a.get('archive_par', ''),
+                notes           = a.get('notes', ''),
+            ))
+            nb_archives += 1
         db.session.commit()
 
         flash(
@@ -2202,7 +2214,8 @@ def importer_donnees():
             f'{nb_factures} facture(s), {nb_operations} opération(s), '
             f'{nb_paiements} paiement(s), {nb_techs} technicien(s), '
             f'{nb_fourni} fournisseur(s), {nb_mat} matériel(s), '
-            f'{nb_presta} prestation(s), {nb_depenses} dépense(s) importé(s).',
+            f'{nb_presta} prestation(s), {nb_depenses} dépense(s), '
+            f'{nb_archives} archive(s) importé(s).',
             'success'
         )
 

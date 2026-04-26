@@ -279,9 +279,9 @@
                         </td>
                         <td>
                             <div class="actions-wrap">
-                                <a href="/proformas/apercu/{{ p.id }}" target="_blank" class="btn-apercu" title="Aperçu">
+                                <button onclick="ouvrirApercu('/proformas/apercu/{{ p.id }}', 'Aperçu Proforma')" class="btn-apercu" title="Aperçu">
                                     <i class="bi bi-eye"></i> Aperçu
-                                </a>
+                                </button>
                                 {% if p.etat_paiement != 'Converti' and role != 'Lecture seule' %}
                                 <a href="/proformas/modifier/{{ p.id }}" class="btn-modifier">
                                     <i class="bi bi-pencil"></i> Modifier
@@ -661,6 +661,10 @@ function soumettreProforma() {
 }
 
 document.querySelectorAll('.pro-ligne').forEach(attachProListeners);
+    function ouvrirApercu(url, titre) {
+        fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(titre))
+            .catch(() => {});
+    }
 </script>
 </body>
 </html>

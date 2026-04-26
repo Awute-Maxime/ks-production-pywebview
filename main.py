@@ -59,6 +59,23 @@ def api_close_window():
     threading.Thread(target=_close, daemon=True).start()
     return jsonify({'ok': True})
 
+# ── Queue main thread (fenêtres + dialogs tkinter) ──────────────────
+import queue as _queue
+_window_queue = _queue.Queue()
+_dialog_result = {}
+
+def open_apercu_window(url, title='Aperçu'):
+    full_url = f"http://127.0.0.1:5000{url}"
+    _window_queue.put(('window', title, full_url))
+
+def open_save_dialog_via_queue(key, initialfile, ext, filetypes):
+    import threading
+    event = threading.Event()
+    _dialog_result[key] = None
+    _window_queue.put(('dialog', key, initialfile, ext, filetypes, event))
+    event.wait(timeout=120)
+    return _dialog_result.pop(key, None)
+
 @app.route('/api/open-window')
 def api_open_window():
     url   = request.args.get('url', '/')
@@ -425,18 +442,14 @@ def api_enregistrer_pdf():
                 print("[PDF] PDF trop petit")
                 return
 
-            # Boîte Enregistrer sous
+            # Boîte Enregistrer sous via queue main thread
             print(f"[PDF] Ouverture dialog: {filename}")
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-            chemin = filedialog.asksaveasfilename(
-                title='Enregistrer le PDF',
-                initialfile=filename,
-                defaultextension='.pdf',
-                filetypes=[('Fichiers PDF', '*.pdf'), ('Tous les fichiers', '*.*')]
+            import uuid
+            key = str(uuid.uuid4())
+            chemin = open_save_dialog_via_queue(
+                key, filename, '.pdf',
+                [('Fichiers PDF', '*.pdf'), ('Tous les fichiers', '*.*')]
             )
-            root.destroy()
 
             if not chemin:
                 print("[PDF] Annulé")
@@ -464,7 +477,7 @@ def api_sauvegarder_json():
         from database import (Client, Facture, LigneFacture, Paiement,
                                Operation, Service, Parametres, Evenement,
                                Technicien, Fournisseur, Materiel,
-                               DepensePrestation, RecuPaiement)
+                               DepensePrestation, RecuPaiement, PrestationArchivee)
         import json as _json
         from datetime import datetime as dt
 
@@ -575,10 +588,31 @@ def api_sauvegarder_json():
 
         # Dépenses prestations
         for d in DepensePrestation.query.all():
+            evt_d = Evenement.query.get(d.evenement_id) if d.evenement_id else None
             data['depenses'].append({
                 'type_depense': d.type_depense, 'description': d.description,
                 'beneficiaire': d.beneficiaire or '', 'montant': d.montant,
                 'statut': d.statut,
+                'evenement_titre': evt_d.titre if evt_d else '',
+            })
+
+        # Archives prestations
+        data['archives'] = []
+        for a in PrestationArchivee.query.all():
+            evt_a = Evenement.query.get(a.evenement_id) if a.evenement_id else None
+            data['archives'].append({
+                'evenement_titre' : evt_a.titre if evt_a else '',
+                'evenement_date'  : evt_a.date.strftime('%Y-%m-%d') if evt_a and evt_a.date else None,
+                'evenement_client': evt_a.nom_client if evt_a else '',
+                'evenement_section': evt_a.section if evt_a else '',
+                'evenement_lieu'  : evt_a.lieu if evt_a else '',
+                'date_archivage'  : a.date_archivage.strftime('%Y-%m-%d') if a.date_archivage else None,
+                'total_recettes'  : a.total_recettes,
+                'total_depenses'  : a.total_depenses,
+                'benefice_net'    : a.benefice_net,
+                'nb_depenses'     : a.nb_depenses,
+                'archive_par'     : a.archive_par or '',
+                'notes'           : a.notes or '',
             })
 
         contenu     = _json.dumps(data, ensure_ascii=False, indent=2)
@@ -587,29 +621,21 @@ def api_sauvegarder_json():
     except Exception as e:
         return jsonify({'ok': False, 'error': str(e)})
 
-    def _ouvrir_dialog(contenu_str, nom):
-        try:
-            import tkinter as tk
-            from tkinter import filedialog
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes('-topmost', True)
-            chemin = filedialog.asksaveasfilename(
-                title='Enregistrer la sauvegarde KS Production',
-                initialfile=nom,
-                defaultextension='.json',
-                filetypes=[('Fichiers JSON', '*.json'), ('Tous les fichiers', '*.*')]
-            )
-            root.destroy()
-            if not chemin:
-                print("[BACKUP] Annulé"); return
+    # Ouvrir dialog via queue main thread
+    import uuid
+    key = str(uuid.uuid4())
+    def _do_backup():
+        chemin = open_save_dialog_via_queue(
+            key, nom_fichier, '.json',
+            [('Fichiers JSON', '*.json'), ('Tous les fichiers', '*.*')]
+        )
+        if chemin:
             with open(chemin, 'w', encoding='utf-8') as f:
-                f.write(contenu_str)
+                f.write(contenu)
             print(f"[BACKUP] ✅ Enregistré: {chemin}")
-        except Exception as ex:
-            print(f"[BACKUP] ❌ Erreur: {ex}")
-
-    threading.Thread(target=_ouvrir_dialog, args=(contenu, nom_fichier), daemon=True).start()
+        else:
+            print("[BACKUP] Annulé")
+    threading.Thread(target=_do_backup, daemon=True).start()
     return jsonify({'ok': True})
 
 
@@ -692,4 +718,37 @@ if __name__ == '__main__':
 
     window.events.loaded += on_loaded
 
-    webview.start(debug=False)
+    def process_window_queue():
+        import tkinter as tk
+        from tkinter import filedialog
+        while True:
+            try:
+                item = _window_queue.get(timeout=0.3)
+                kind = item[0]
+                if kind == 'window':
+                    _, title, url = item
+                    webview.create_window(title, url, width=1050, height=780,
+                                          resizable=True, confirm_close=False)
+                    print(f"[WINDOW] ✅ {title}")
+                elif kind == 'dialog':
+                    _, key, initialfile, ext, filetypes, event = item
+                    try:
+                        root = tk.Tk(); root.withdraw()
+                        root.attributes('-topmost', True)
+                        chemin = filedialog.asksaveasfilename(
+                            parent=root, initialfile=initialfile,
+                            defaultextension=ext, filetypes=filetypes
+                        )
+                        root.destroy()
+                        _dialog_result[key] = chemin or None
+                    except Exception as ex:
+                        print(f"[DIALOG] ❌ {ex}")
+                        _dialog_result[key] = None
+                    finally:
+                        event.set()
+            except _queue.Empty:
+                pass
+            except Exception as e:
+                print(f"[QUEUE] ❌ {e}")
+
+    webview.start(func=process_window_queue, debug=False)

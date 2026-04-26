@@ -176,7 +176,7 @@
             <small class="text-muted">{{ total }} service(s) actif(s)</small>
         </div>
         <div class="d-flex align-items-center gap-2">
-            <a href="/services/fiche-tarifs" class="btn btn-sm btn-ks" target="_blank">
+            <button onclick="ouvrirApercu('/services/fiche-tarifs', 'Fiche Tarifs')" class="btn btn-sm btn-ks">
                 <i class="bi bi-file-earmark-pdf me-1"></i>Fiche Tarifs PDF
             </a>
             <span class="badge bg-secondary">{{ role }}</span>
@@ -563,6 +563,14 @@ function closeSidebar() {
     const icon = document.getElementById('hamburgerIcon');
     if (icon) icon.className = 'bi bi-list';
 }
+    function ouvrirApercu(url, titre) {
+        fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(titre))
+            .catch(() => {});
+    }
+    function ouvrirFichePDF(evtId) {
+        fetch('/api/open-window?url=' + encodeURIComponent('/agenda/fiche-pdf/' + evtId) + '&title=Fiche+PDF')
+            .catch(() => {});
+    }
 </script>
 </body>
 </html>

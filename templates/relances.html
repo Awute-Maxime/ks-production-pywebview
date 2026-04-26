@@ -245,9 +245,9 @@
                                 <button class="btn-msg" onclick="voirMessage({{ r.facture.id }}, '{{ r.facture.nom_client }}')">
                                     <i class="bi bi-chat-text"></i> Message
                                 </button>
-                                <a href="/relances/pdf/{{ r.facture.id }}" target="_blank" class="btn-pdf">
+                                <button onclick="ouvrirApercu('/relances/pdf/{{ r.facture.id }}', 'Relance')" class="btn-pdf">
                                     <i class="bi bi-file-earmark-pdf"></i> PDF
-                                </a>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -332,6 +332,14 @@ function copierMessage() {
         overlay.classList.remove('active');
         if (icon) icon.className = 'bi bi-list';
     }
-    </script>
+        function ouvrirApercu(url, titre) {
+        fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(titre))
+            .catch(() => {});
+    }
+    function ouvrirFichePDF(evtId) {
+        fetch('/api/open-window?url=' + encodeURIComponent('/agenda/fiche-pdf/' + evtId) + '&title=Fiche+PDF')
+            .catch(() => {});
+    }
+</script>
 </body>
 </html>
