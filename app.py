@@ -2954,18 +2954,73 @@ def modifier_evenement(id):
         return redirect(url_for('agenda'))
 
     evt = Evenement.query.get_or_404(id)
-    evt.titre       = request.form.get('titre', '').strip()
-    evt.heure_debut = request.form.get('heure_debut', '').strip()
-    evt.heure_fin   = request.form.get('heure_fin', '').strip()
-    evt.nom_client  = request.form.get('nom_client', '').strip()
-    evt.service     = request.form.get('service', '').strip()
-    evt.section     = request.form.get('section', '').strip()
-    evt.lieu        = request.form.get('lieu', '').strip()
-    evt.notes       = request.form.get('notes', '').strip()
-    evt.statut      = request.form.get('statut', 'Confirmé')
+    evt.titre       = request.form.get('titre', evt.titre).strip()
+    evt.heure_debut = request.form.get('heure_debut', evt.heure_debut or '').strip()
+    evt.heure_fin   = request.form.get('heure_fin', evt.heure_fin or '').strip()
+    evt.nom_client  = request.form.get('nom_client', evt.nom_client or '').strip()
+    evt.service     = request.form.get('service', evt.service or '').strip()
+    evt.section     = request.form.get('section', evt.section or '').strip()
+    evt.lieu        = request.form.get('lieu', evt.lieu or '').strip()
+    evt.notes       = request.form.get('notes', evt.notes or '').strip()
+    evt.statut      = request.form.get('statut', evt.statut)
+    fac_id          = request.form.get('facture_id', '')
+    evt.facture_id  = int(fac_id) if fac_id else None
+    date_str        = request.form.get('date', '')
+    if date_str:
+        evt.date = datetime.strptime(date_str, '%Y-%m-%d').date()
     db.session.commit()
-    flash(f'Événement "{evt.titre}" modifié !', 'success')
-    return redirect(url_for('agenda', mois=evt.date.month, annee=evt.date.year))
+    fac_num = None
+    if evt.facture_id:
+        f = Facture.query.get(evt.facture_id)
+        if f: fac_num = f.numero
+    return jsonify({'ok': True, 'titre': evt.titre, 'nom_client': evt.nom_client,
+        'lieu': evt.lieu, 'section': evt.section, 'statut': evt.statut,
+        'facture_id': evt.facture_id, 'facture_num': fac_num})
+
+
+@app.route('/agenda/depenses/creer-recu/<int:evt_id>', methods=['POST'])
+def creer_recu_depenses(evt_id):
+    if 'username' not in session: return jsonify({'ok': False})
+    tid   = request.form.get('technicien_id', None)
+    tid   = int(tid) if tid else None
+    benef_filter = request.form.get('beneficiaire', None)  # pour les libres sans technicien_id
+    # Seulement Prime technicien et Rémunération musicien
+    TYPES_RECU = ('Prime technicien', 'Rémunération musicien')
+    q = DepensePrestation.query.filter_by(evenement_id=evt_id, statut='Payé')                               .filter(DepensePrestation.type_depense.in_(TYPES_RECU))
+    if tid:
+        q = q.filter_by(technicien_id=tid)
+    elif benef_filter:
+        q = q.filter_by(beneficiaire=benef_filter)
+    deps = q.all()
+    if not deps:
+        return jsonify({'ok': False, 'error': 'Aucune prime payée pour ce bénéficiaire'})
+    benef = deps[0].beneficiaire or ''
+    if tid:
+        tech = Technicien.query.get(tid)
+        if tech: benef = tech.nom
+    elif benef_filter:
+        benef = benef_filter
+    total = sum(d.montant for d in deps)
+    evt   = Evenement.query.get(evt_id)
+    annee = datetime.now().year
+    nb    = RecuPaiement.query.count() + 1
+    num   = 'RECU-{}-{:03d}'.format(annee, nb)
+    while RecuPaiement.query.filter_by(numero=num).first():
+        nb += 1; num = 'RECU-{}-{:03d}'.format(annee, nb)
+    lignes = ['{} - {} : {:,.0f} FCFA'.format(d.type_depense, d.description, d.montant) for d in deps]
+    notes_txt = 'Prestation: ' + (evt.titre if evt else '') + chr(10) + chr(10).join(lignes)
+    recu = RecuPaiement(
+        numero=num, beneficiaire=benef, technicien_id=tid,
+        type_recu='Reçu Prestation', total_primes=total, total_net=total,
+        mois=datetime.now().strftime('%B %Y'), notes=notes_txt,
+        cree_par=session.get('username')
+    )
+    db.session.add(recu)
+    db.session.flush()
+    for d in deps: d.recu_id = recu.id
+    db.session.commit()
+    return jsonify({'ok': True, 'recu_id': recu.id, 'numero': num,
+                    'beneficiaire': benef, 'total': total})
 
 
 @app.route('/agenda/api/evenements')
@@ -4050,6 +4105,8 @@ def api_depenses_evt(evt_id):
             'id': d.id, 'type_depense': d.type_depense,
             'description': d.description, 'beneficiaire': d.beneficiaire or '',
             'montant': d.montant, 'statut': d.statut,
+            'technicien_id': d.technicien_id,
+            'recu_id': d.recu_id,
             'date_paiement': d.date_paiement.strftime('%d/%m/%Y') if d.date_paiement else '',
             'a_statut': d.type_depense in ('Prime technicien', 'Rémunération musicien'),
         })
@@ -4087,33 +4144,19 @@ def ajouter_depense(evt_id):
     db.session.add(d)
     db.session.flush()
 
-    recu_id = None
-    # Reçu uniquement pour Prime technicien et Rémunération musicien payés
-    necessite_recu = type_dep in ('Prime technicien', 'Rémunération musicien')
-    if statut == 'Payé' and necessite_recu:
-        annee  = datetime.now().year
-        nb     = RecuPaiement.query.count() + 1
-        numero = f"RECU-{annee}-{nb:03d}"
-        while RecuPaiement.query.filter_by(numero=numero).first():
-            nb += 1; numero = f"RECU-{annee}-{nb:03d}"
-        recu = RecuPaiement(
-            numero=numero,
-            beneficiaire=beneficiaire or description,
-            technicien_id=technicien_id,
-            type_recu='Reçu Prestation',
-            total_primes=montant,
-            total_net=montant,
-            mois=datetime.now().strftime('%B %Y'),
-            notes=f"{type_dep} — {description}",
-            cree_par=session.get('username')
-        )
-        db.session.add(recu)
-        db.session.flush()
-        d.recu_id = recu.id
-        recu_id   = recu.id
-
     db.session.commit()
-    return jsonify({'ok': True, 'id': d.id, 'recu_id': recu_id, 'statut': statut, 'necessite_recu': necessite_recu})
+    return jsonify({'ok': True, 'id': d.id, 'recu_id': None, 'statut': statut, 'necessite_recu': False})
+
+@app.route('/agenda/depenses/payer/<int:dep_id>', methods=['POST'])
+def payer_depense_agenda(dep_id):
+    """Marque une dépense 'En attente' comme 'Payé' sans créer de reçu automatique."""
+    if 'username' not in session: return jsonify({'ok': False})
+    d = DepensePrestation.query.get_or_404(dep_id)
+    d.statut        = 'Payé'
+    d.date_paiement = datetime.now()
+    db.session.commit()
+    return jsonify({'ok': True, 'id': d.id, 'statut': d.statut})
+
 
 @app.route('/agenda/depenses/supprimer/<int:dep_id>', methods=['POST'])
 def supprimer_depense(dep_id):

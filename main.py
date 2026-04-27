@@ -719,23 +719,27 @@ if __name__ == '__main__':
     window.events.loaded += on_loaded
 
     def process_window_queue():
-        import tkinter as tk
-        from tkinter import filedialog
+        # NE PAS importer tkinter ici — doit rester dans le thread principal
         while True:
             try:
                 item = _window_queue.get(timeout=0.3)
                 kind = item[0]
                 if kind == 'window':
                     _, title, url = item
-                    webview.create_window(title, url, width=1050, height=780,
-                                          resizable=True, confirm_close=False)
-                    print(f"[WINDOW] ✅ {title}")
+                    try:
+                        webview.create_window(title, url, width=1050, height=780,
+                                              resizable=True, confirm_close=False)
+                        print(f"[WINDOW] ✅ {title}")
+                    except Exception as ex:
+                        print(f"[WINDOW] ❌ {ex}")
                 elif kind == 'dialog':
                     _, key, initialfile, ext, filetypes, event = item
                     try:
-                        root = tk.Tk(); root.withdraw()
+                        import tkinter as _tk
+                        from tkinter import filedialog as _fd
+                        root = _tk.Tk(); root.withdraw()
                         root.attributes('-topmost', True)
-                        chemin = filedialog.asksaveasfilename(
+                        chemin = _fd.asksaveasfilename(
                             parent=root, initialfile=initialfile,
                             defaultextension=ext, filetypes=filetypes
                         )

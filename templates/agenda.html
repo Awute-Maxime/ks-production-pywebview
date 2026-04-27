@@ -369,6 +369,11 @@
                        title="Fiche PDF">
                         <i class="bi bi-file-earmark-pdf"></i>
                     </a>
+                    <button onclick="event.stopPropagation(); ouvrirModifierDirect('{{ ev.id }}', '{{ ev.titre|replace("'", "\'") }}', '{{ ev.date.strftime("%Y-%m-%d") }}', '{{ ev.heure_debut or "" }}', '{{ ev.heure_fin or "" }}', '{{ (ev.nom_client or "")|replace("'", "\'") }}', '{{ ev.section or "" }}', '{{ (ev.lieu or "")|replace("'", "\'") }}', '{{ ev.statut }}', '{{ (ev.notes or "")|replace("'", "\'") }}', {{ ev.facture_id or "null" }})"
+                            style="background:#dbeafe; border:none; color:#1e40af; border-radius:6px; width:26px; height:26px; font-size:.72rem; cursor:pointer;"
+                            title="Modifier">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <form method="POST" action="/agenda/supprimer/{{ ev.id }}"
                           onsubmit="event.stopPropagation(); return confirm('Supprimer cet événement ?')">
                         <button type="submit" onclick="event.stopPropagation();"
@@ -504,6 +509,10 @@
                     </div>
                 </div>
                 <div style="display:flex; align-items:center; gap:8px;">
+                    <button onclick="ouvrirModalModifier()"
+                       class="btn btn-sm" style="background:#0984e3;color:#fff;border:none;font-size:.78rem;border-radius:7px;">
+                        <i class="bi bi-pencil me-1"></i>Modifier
+                    </button>
                     <button id="btnFichePDF" onclick="ouvrirFichePDF()"
                        class="btn btn-sm" style="background:#e94560;color:#fff;border:none;font-size:.78rem;border-radius:7px;">
                         <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
@@ -716,9 +725,26 @@
                         </div>
                     </div>
 
+                    <!-- Reçu récapitulatif -->
+                    {% if role != 'Lecture seule' %}
+                    <div id="recapRecuWrap" style="margin-top:10px; display:none;">
+                        <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:10px; padding:10px 14px; margin-bottom:8px;">
+                            <div style="font-size:.78rem; font-weight:700; color:#065f46; margin-bottom:8px;">
+                                <i class="bi bi-receipt me-1"></i>Créer un reçu récapitulatif
+                            </div>
+                            <select id="selectTechRecu" class="form-select form-select-sm mb-2" style="font-size:.8rem;">
+                                <option value="">— Tous les techniciens —</option>
+                            </select>
+                            <button onclick="creerRecuRecap()" class="btn btn-sm w-100"
+                                    style="background:#00b894;color:#fff;border:none;border-radius:7px;font-size:.78rem;">
+                                <i class="bi bi-file-earmark-check me-1"></i>Générer le reçu
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
                     <!-- Archiver -->
                     {% if role != 'Lecture seule' %}
-                    <button id="btnArchiverPrest" onclick="archiverPrestation()" class="btn btn-sm mt-3 w-100"
+                    <button id="btnArchiverPrest" onclick="archiverPrestation()" class="btn btn-sm mt-2 w-100"
                         style="background:linear-gradient(135deg,#1a1a2e,#2d3756);color:#fff;border:none;border-radius:8px;font-size:.78rem;padding:9px;">
                         <i class="bi bi-archive me-1"></i>Clôturer & Archiver la prestation
                     </button>
@@ -1025,18 +1051,24 @@ function chargerDepenses(evtId) {
                 liste.innerHTML = '<span style="color:#9ca3af;font-size:.78rem;">Aucune dépense enregistrée</span>';
                 totaux.style.display = 'none';
             } else {
-                liste.innerHTML = depenses.map(d => `
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:7px;margin-bottom:4px;background:${d.statut==='Payé'?'#f0fdf4':'#fffbeb'};border:1px solid ${d.statut==='Payé'?'#bbf7d0':'#fde68a'};">
+                liste.innerHTML = depenses.map(d => {
+                    const isPrime = d.type_depense === 'Prime technicien' || d.type_depense === 'Rémunération musicien';
+                    const btnPayer = (d.statut === 'En attente' && isPrime)
+                        ? `<button onclick="payerDepenseAgenda(${d.id})" style="background:#00b894;border:none;color:#fff;cursor:pointer;font-size:.68rem;padding:2px 7px;border-radius:5px;font-weight:700;margin-right:2px;">✓ Payer</button>`
+                        : '';
+                    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-radius:7px;margin-bottom:4px;background:${d.statut==='Payé'?'#f0fdf4':'#fffbeb'};border:1px solid ${d.statut==='Payé'?'#bbf7d0':'#fde68a'};">
                         <div style="flex:1;">
                             <span style="font-size:.8rem;font-weight:700;color:#1a1a2e;">${d.description}</span>
                             ${d.beneficiaire ? `<span style="font-size:.72rem;color:#6b7280;margin-left:6px;">${d.beneficiaire}</span>` : ''}
                             <span style="font-size:.68rem;padding:1px 6px;border-radius:6px;margin-left:6px;background:${d.statut==='Payé'?'#d1fae5':'#fef3c7'};color:${d.statut==='Payé'?'#065f46':'#92400e'};font-weight:700;">${d.statut}</span>
                         </div>
-                        <div style="display:flex;align-items:center;gap:6px;">
+                        <div style="display:flex;align-items:center;gap:4px;">
                             <strong style="font-size:.82rem;color:${d.statut==='Payé'?'#065f46':'#92400e'};">${fmt(d.montant)}</strong>
+                            ${btnPayer}
                             <button onclick="supprimerDepense(${d.id})" style="background:none;border:none;color:#e94560;cursor:pointer;font-size:.8rem;padding:0 3px;" title="Supprimer">✕</button>
                         </div>
-                    </div>`).join('');
+                    </div>`;
+                }).join('');
 
                 document.getElementById('depTotalPaye').textContent    = fmt(data.total_paye);
                 document.getElementById('depTotalAttente').textContent = fmt(data.total_attente);
@@ -1066,6 +1098,8 @@ function chargerDepenses(evtId) {
                     recWrap.style.display = 'none';
                 }
             }
+            // Vérifier si des primes sans reçu existent
+            afficherBoutonRecu(depenses);
         })
         .catch(() => {
             document.getElementById('depensesList').innerHTML = '<span style="color:#9ca3af;font-size:.78rem;">Impossible de charger</span>';
@@ -1215,14 +1249,18 @@ function enregistrerDepense() {
                 // Reçu uniquement pour Prime/Rémunération payées
                 if (d.statut === 'Payé' && d.recu_id && d.necessite_recu) {
                     const recuUrl = '/paie/recu/' + d.recu_id;
-                    if (typeof window.openNativeWindow === 'function') {
-                        window.openNativeWindow(recuUrl, 'Reçu — ' + d.recu_id);
-                    } else {
-                        window.open(recuUrl, '_blank');
-                    }
+                    fetch('/api/open-window?url=' + encodeURIComponent(recuUrl) + '&title=Reçu')
+                        .catch(() => {});
                 }
             } else { flash.innerHTML = '<div style="color:#e94560;font-size:.78rem;">Erreur.</div>'; }
         });
+}
+
+function payerDepenseAgenda(depId) {
+    if (!confirm('Confirmer le paiement de cette prime ?')) return;
+    fetch('/agenda/depenses/payer/' + depId, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.ok) chargerDepenses(evtIdCourant); });
 }
 
 function supprimerDepense(depId) {
@@ -1317,6 +1355,271 @@ function initBadgeAlertes() {
     }).catch(() => {});
 }
 document.addEventListener('DOMContentLoaded', initBadgeAlertes);
+</script>
+
+<!-- ══ MODAL MODIFIER PRESTATION ════════════════════════════════════ -->
+<div class="modal fade" id="modalModifierPrestation" tabindex="-1" data-bs-backdrop="static">
+<div class="modal-dialog modal-lg">
+<div class="modal-content">
+    <div class="modal-header" style="background:#0984e3; color:#fff;">
+        <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Modifier la prestation</h5>
+        <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
+    </div>
+    <div class="modal-body">
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label fw-bold">Titre <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="modTitre">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Date</label>
+                <input type="date" class="form-control" id="modDate">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Heure début</label>
+                <input type="time" class="form-control" id="modHeureDebut">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label fw-bold">Heure fin</label>
+                <input type="time" class="form-control" id="modHeureFin">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Client</label>
+                <input type="text" class="form-control" id="modClient">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Section</label>
+                <select class="form-select" id="modSection">
+                    <option value="Sonorisation">Sonorisation</option>
+                    <option value="Studio">Studio</option>
+                    <option value="Général">Général</option>
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold">Lieu</label>
+                <input type="text" class="form-control" id="modLieu">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">Statut</label>
+                <select class="form-select" id="modStatut">
+                    <option value="Confirmé">✓ Confirmé</option>
+                    <option value="Tentative">⏳ Tentative</option>
+                    <option value="Annulé">✗ Annulé</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-bold">
+                    <i class="bi bi-receipt me-1" style="color:#e94560;"></i>Lier à une facture
+                </label>
+                <select class="form-select" id="modFactureId">
+                    <option value="">— Aucune facture liée —</option>
+                    {% for f in factures_liables %}
+                    <option value="{{ f.id }}">{{ f.numero }} — {{ f.nom_client }} ({{ "{:,.0f}".format(f.montant_ttc).replace(',', ' ') }} FCFA)</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-bold">Notes</label>
+                <textarea class="form-control" id="modNotes" rows="2"></textarea>
+            </div>
+        </div>
+        <div id="flashModifier" style="margin-top:10px;"></div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+        <button type="button" class="btn btn-primary" id="btnSaveModifier" onclick="sauvegarderModification()">
+            <i class="bi bi-check-lg me-1"></i>Enregistrer
+        </button>
+    </div>
+</div>
+</div>
+</div>
+
+<script>
+// ── Modifier prestation ───────────────────────────────────────────
+function ouvrirModifierDirect(id, titre, date, hd, hf, client, section, lieu, statut, notes, factureId) {
+    // Simuler un voirDetail minimal puis ouvrir le modal modifier
+    evtIdCourant    = id;
+    evtDateCourante = date;
+    evtFactureId    = factureId;
+
+    document.getElementById('modTitre').value      = titre;
+    document.getElementById('modDate').value       = date;
+    document.getElementById('modHeureDebut').value = hd;
+    document.getElementById('modHeureFin').value   = hf;
+    document.getElementById('modClient').value     = client;
+    document.getElementById('modLieu').value       = lieu;
+    document.getElementById('modNotes').value      = notes;
+
+    const selSec = document.getElementById('modSection');
+    for (let opt of selSec.options) { if (opt.value === section) { selSec.value = section; break; } }
+    const selStat = document.getElementById('modStatut');
+    for (let opt of selStat.options) { if (opt.value === statut) { selStat.value = statut; break; } }
+    document.getElementById('modFactureId').value  = factureId || '';
+
+    document.getElementById('flashModifier').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('modalModifierPrestation')).show();
+}
+
+function ouvrirModalModifier() {
+    // Pré-remplir avec les données courantes
+    document.getElementById('modTitre').value      = document.getElementById('detailTitre').textContent;
+    document.getElementById('modClient').value     = document.getElementById('detailClient').textContent.replace('—','').trim();
+    document.getElementById('modLieu').value       = document.getElementById('detailLieu').textContent.replace('—','').trim();
+    document.getElementById('modNotes').value      = document.getElementById('detailNotes').textContent.replace('—','').trim();
+
+    // Date
+    if (evtDateCourante) document.getElementById('modDate').value = evtDateCourante;
+
+    // Heure (format HH:MM)
+    const heureText = document.getElementById('detailHeure').textContent;
+    if (heureText && heureText !== '—') {
+        const parts = heureText.split('–').map(s => s.trim());
+        document.getElementById('modHeureDebut').value = parts[0] || '';
+        document.getElementById('modHeureFin').value   = parts[1] || '';
+    }
+
+    // Section
+    const sec = document.getElementById('detailSection').textContent.trim();
+    const selSec = document.getElementById('modSection');
+    for (let opt of selSec.options) { if (opt.value === sec) { selSec.value = sec; break; } }
+
+    // Statut
+    const stat = document.getElementById('detailStatut').textContent.trim();
+    const selStat = document.getElementById('modStatut');
+    for (let opt of selStat.options) { if (opt.value === stat) { selStat.value = stat; break; } }
+
+    // Facture
+    if (evtFactureId) document.getElementById('modFactureId').value = evtFactureId;
+    else document.getElementById('modFactureId').value = '';
+
+    document.getElementById('flashModifier').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('modalModifierPrestation')).show();
+}
+
+function sauvegarderModification() {
+    const btn = document.getElementById('btnSaveModifier');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Enregistrement...';
+
+    const fd = new FormData();
+    fd.append('titre',       document.getElementById('modTitre').value.trim());
+    fd.append('date',        document.getElementById('modDate').value);
+    fd.append('heure_debut', document.getElementById('modHeureDebut').value);
+    fd.append('heure_fin',   document.getElementById('modHeureFin').value);
+    fd.append('nom_client',  document.getElementById('modClient').value.trim());
+    fd.append('section',     document.getElementById('modSection').value);
+    fd.append('lieu',        document.getElementById('modLieu').value.trim());
+    fd.append('statut',      document.getElementById('modStatut').value);
+    fd.append('notes',       document.getElementById('modNotes').value.trim());
+    fd.append('facture_id',  document.getElementById('modFactureId').value);
+
+    fetch('/agenda/modifier/' + evtIdCourant, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Enregistrer';
+            if (d.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('modalModifierPrestation')).hide();
+                document.getElementById('flashModifier').innerHTML = '';
+
+                // Mettre à jour le modal detail si ouvert
+                const detTitre = document.getElementById('detailTitre');
+                if (detTitre) detTitre.textContent = d.titre;
+                const detClient = document.getElementById('detailClient');
+                if (detClient) detClient.textContent = d.nom_client || '—';
+                const detLieu = document.getElementById('detailLieu');
+                if (detLieu) detLieu.textContent = d.lieu || '—';
+                const detSection = document.getElementById('detailSection');
+                if (detSection) detSection.textContent = d.section || '—';
+                const detStatut = document.getElementById('detailStatut');
+                if (detStatut) detStatut.textContent = d.statut;
+
+                // Mettre à jour le lien facture
+                evtFactureId = d.facture_id;
+                const factureSpan = document.getElementById('detailFacture');
+                if (factureSpan) {
+                    if (d.facture_id && d.facture_num) {
+                        factureSpan.innerHTML = '<button onclick="ouvrirApercuFacture(' + d.facture_id + ')" style="color:#e94560;font-weight:600;background:none;border:none;cursor:pointer;padding:0;"><i class="bi bi-receipt me-1"></i>' + d.facture_num + '</button>';
+                        fetch('/api/facture-montant/' + d.facture_id)
+                            .then(r => r.json())
+                            .then(fac => { evtFactureMontant = fac.montant_ttc || 0; chargerDepenses(evtIdCourant); })
+                            .catch(() => {});
+                    } else {
+                        factureSpan.innerHTML = '<span style="color:#9ca3af;font-size:.78rem;">Aucune facture liée</span>';
+                        evtFactureMontant = 0;
+                    }
+                }
+
+                // Recharger la page après 600ms pour refléter les changements dans la liste
+                setTimeout(() => location.reload(), 600);
+            } else {
+                document.getElementById('flashModifier').innerHTML =
+                    '<div class="alert alert-danger py-2" style="font-size:.8rem;">' + (d.error || 'Erreur') + '</div>';
+            }
+        });
+}
+
+// ── Reçu récapitulatif ────────────────────────────────────────────
+function afficherBoutonRecu(depenses) {
+    if (!depenses) return;
+    const primesPay = depenses.filter(d =>
+        d.statut === 'Payé' &&
+        (d.type_depense === 'Prime technicien' || d.type_depense === 'Rémunération musicien')
+    );
+    const wrap = document.getElementById('recapRecuWrap');
+    if (!wrap) return;
+    if (primesPay.length > 0) {
+        wrap.style.display = 'block';
+        const sel = document.getElementById('selectTechRecu');
+        sel.innerHTML = '<option value="">— Tous les techniciens —</option>';
+        const vus = {};
+        primesPay.forEach(d => {
+            const key = d.technicien_id ? ('tech_' + d.technicien_id) : ('lib_' + d.beneficiaire);
+            if (!vus[key]) {
+                vus[key] = true;
+                const opt = document.createElement('option');
+                opt.value = d.technicien_id ? String(d.technicien_id) : ('ben:' + (d.beneficiaire || ''));
+                opt.textContent = d.beneficiaire || ('Technicien #' + d.technicien_id);
+                sel.appendChild(opt);
+            }
+        });
+    } else {
+        wrap.style.display = 'none';
+    }
+}
+
+function creerRecuRecap() {
+    const techVal = document.getElementById('selectTechRecu').value;
+    const btn = document.querySelector('#recapRecuWrap button');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Création...';
+
+    const fd = new FormData();
+    if (techVal) {
+        if (techVal.startsWith('ben:')) {
+            fd.append('beneficiaire', techVal.substring(4));
+        } else {
+            fd.append('technicien_id', techVal);
+        }
+    }
+
+    fetch('/agenda/depenses/creer-recu/' + evtIdCourant, { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>Générer le reçu';
+            if (d.ok) {
+                // Ouvrir le reçu
+                fetch('/api/open-window?url=' + encodeURIComponent('/paie/recu/' + d.recu_id) +
+                      '&title=' + encodeURIComponent('Reçu — ' + d.beneficiaire))
+                    .catch(() => {});
+                chargerDepenses(evtIdCourant);
+            } else {
+                alert(d.error || 'Erreur lors de la création du reçu');
+            }
+        });
+}
 </script>
 </body>
 </html>

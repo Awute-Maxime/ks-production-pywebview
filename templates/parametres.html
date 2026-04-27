@@ -560,10 +560,10 @@
                 <!-- Aperçu facture mini -->
                 <div class="param-card">
                     <div class="card-title"><i class="bi bi-eye"></i> Lien rapide</div>
-                    <a href="/factures/apercu/1" target="_blank" class="btn btn-outline-primary btn-sm w-100 mb-2" style="font-size:.8rem;">
+                    <a onclick="ouvrirApercu('/factures/apercu/1', 'Aperçu Facture')" href="#" class="btn btn-outline-primary btn-sm w-100 mb-2" style="font-size:.8rem;">
                         <i class="bi bi-receipt me-1"></i>Voir un aperçu de facture
                     </a>
-                    <a href="/services/fiche-tarifs" target="_blank" class="btn btn-outline-secondary btn-sm w-100" style="font-size:.8rem;">
+                    <a onclick="ouvrirApercu('/services/fiche-tarifs', 'Fiche Tarifs')" href="#" class="btn btn-outline-secondary btn-sm w-100" style="font-size:.8rem;">
                         <i class="bi bi-file-earmark-text me-1"></i>Voir la fiche tarifs
                     </a>
                 </div>
@@ -787,6 +787,10 @@ function initBadgeAlertes() {
     }).catch(() => {});
 }
 document.addEventListener('DOMContentLoaded', initBadgeAlertes);
+    function ouvrirApercu(url, titre) {
+        fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(titre))
+            .catch(() => {});
+    }
 </script>
 </body>
 </html>
