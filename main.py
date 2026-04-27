@@ -476,8 +476,9 @@ def api_sauvegarder_json():
     try:
         from database import (Client, Facture, LigneFacture, Paiement,
                                Operation, Service, Parametres, Evenement,
-                               Technicien, Fournisseur, Materiel,
-                               DepensePrestation, RecuPaiement, PrestationArchivee)
+                               Technicien, Fournisseur, Materiel, EvenementTechnicien,
+                               EvenementMateriel, DepensePrestation, RecuPaiement,
+                               PrestationArchivee)
         import json as _json
         from datetime import datetime as dt
 
@@ -486,6 +487,7 @@ def api_sauvegarder_json():
             'factures': [], 'lignes': [], 'paiements': [], 'operations': [],
             'clients': [], 'services': [], 'techniciens': [], 'fournisseurs': [],
             'materiels': [], 'prestations': [], 'depenses': [],
+            'recus': [], 'assignations_tech': [], 'assignations_mat': [], 'archives': [],
         }
 
         # Factures + Proformas
@@ -512,7 +514,7 @@ def api_sauvegarder_json():
 
         # Paiements
         for p in Paiement.query.all():
-            fac = Facture.query.get(p.facture_id)
+            fac = Facture.query.get(p.facture_id) if p.facture_id else None
             data['paiements'].append({
                 'numero': p.numero, 'n_facture': p.n_facture or '',
                 'facture_numero': fac.numero if fac else (p.n_facture or ''),
@@ -554,7 +556,7 @@ def api_sauvegarder_json():
                 'nom': t.nom, 'telephone': t.telephone or '',
                 'email': t.email or '', 'specialite': t.specialite or '',
                 'role': t.role or '', 'statut_emploi': t.statut_emploi or 'Temporaire',
-                'salaire_base': t.salaire_base or 0,
+                'salaire_base': t.salaire_base or 0, 'statut': t.statut or 'Disponible',
             })
 
         # Fournisseurs
@@ -575,44 +577,86 @@ def api_sauvegarder_json():
                 'fournisseur': fou.nom if fou else None,
             })
 
-        # Prestations
+        # Prestations (Evenements)
         for e in Evenement.query.all():
+            fac = Facture.query.get(e.facture_id) if e.facture_id else None
             data['prestations'].append({
                 'titre': e.titre, 'nom_client': e.nom_client or '',
                 'lieu': e.lieu or '', 'section': e.section or '',
-                'statut': e.statut or 'Confirmé', 'service': e.service or '',
+                'statut': e.statut or 'Confirme', 'service': e.service or '',
                 'notes': e.notes or '',
                 'heure_debut': e.heure_debut or '', 'heure_fin': e.heure_fin or '',
+                'facture_numero': fac.numero if fac else None,
                 'date': e.date.strftime('%Y-%m-%d') if e.date else None,
             })
 
-        # Dépenses prestations
+        # Dépenses prestations (avec tous les liens)
         for d in DepensePrestation.query.all():
-            evt_d = Evenement.query.get(d.evenement_id) if d.evenement_id else None
+            evt = Evenement.query.get(d.evenement_id) if d.evenement_id else None
+            tech = Technicien.query.get(d.technicien_id) if d.technicien_id else None
+            recu = RecuPaiement.query.get(d.recu_id) if d.recu_id else None
             data['depenses'].append({
+                'evenement_titre': evt.titre if evt else '',
                 'type_depense': d.type_depense, 'description': d.description,
-                'beneficiaire': d.beneficiaire or '', 'montant': d.montant,
-                'statut': d.statut,
-                'evenement_titre': evt_d.titre if evt_d else '',
+                'beneficiaire': d.beneficiaire or '',
+                'technicien_nom': tech.nom if tech else None,
+                'montant': d.montant, 'statut': d.statut,
+                'recu_numero': recu.numero if recu else None,
+                'date_paiement': d.date_paiement.strftime('%Y-%m-%d') if d.date_paiement else None,
             })
 
+        # Reçus de paiement
+        for r in RecuPaiement.query.all():
+            tech = Technicien.query.get(r.technicien_id) if r.technicien_id else None
+            data['recus'].append({
+                'numero': r.numero, 'beneficiaire': r.beneficiaire,
+                'technicien_nom': tech.nom if tech else None,
+                'type_recu': r.type_recu, 'salaire_base': r.salaire_base or 0,
+                'total_primes': r.total_primes or 0, 'total_net': r.total_net or 0,
+                'mois': r.mois or '', 'notes': r.notes or '',
+                'cree_par': r.cree_par or '',
+                'date': r.date.strftime('%Y-%m-%d') if r.date else None,
+            })
+
+        # Assignations Techniciens ↔ Prestations
+        for et in EvenementTechnicien.query.all():
+            evt  = Evenement.query.get(et.evenement_id)
+            tech = Technicien.query.get(et.technicien_id)
+            if evt and tech:
+                data['assignations_tech'].append({
+                    'evenement_titre': evt.titre,
+                    'technicien_nom': tech.nom,
+                    'role': et.role or '',
+                })
+
+        # Assignations Matériels ↔ Prestations
+        for em in EvenementMateriel.query.all():
+            evt = Evenement.query.get(em.evenement_id)
+            mat = Materiel.query.get(em.materiel_id)
+            if evt and mat:
+                data['assignations_mat'].append({
+                    'evenement_titre': evt.titre,
+                    'materiel_nom': mat.nom,
+                    'quantite': em.quantite or 1,
+                    'notes': em.notes or '',
+                })
+
         # Archives prestations
-        data['archives'] = []
         for a in PrestationArchivee.query.all():
-            evt_a = Evenement.query.get(a.evenement_id) if a.evenement_id else None
+            evt = Evenement.query.get(a.evenement_id) if a.evenement_id else None
             data['archives'].append({
-                'evenement_titre' : evt_a.titre if evt_a else '',
-                'evenement_date'  : evt_a.date.strftime('%Y-%m-%d') if evt_a and evt_a.date else None,
-                'evenement_client': evt_a.nom_client if evt_a else '',
-                'evenement_section': evt_a.section if evt_a else '',
-                'evenement_lieu'  : evt_a.lieu if evt_a else '',
-                'date_archivage'  : a.date_archivage.strftime('%Y-%m-%d') if a.date_archivage else None,
-                'total_recettes'  : a.total_recettes,
-                'total_depenses'  : a.total_depenses,
-                'benefice_net'    : a.benefice_net,
-                'nb_depenses'     : a.nb_depenses,
-                'archive_par'     : a.archive_par or '',
-                'notes'           : a.notes or '',
+                'evenement_titre': evt.titre if evt else '',
+                'evenement_date': evt.date.strftime('%Y-%m-%d') if evt and evt.date else None,
+                'evenement_client': evt.nom_client if evt else '',
+                'evenement_section': evt.section if evt else '',
+                'evenement_lieu': evt.lieu if evt else '',
+                'date_archivage': a.date_archivage.strftime('%Y-%m-%d') if a.date_archivage else None,
+                'total_recettes': a.total_recettes or 0,
+                'total_depenses': a.total_depenses or 0,
+                'benefice_net': a.benefice_net or 0,
+                'nb_depenses': a.nb_depenses or 0,
+                'archive_par': a.archive_par or '',
+                'notes': a.notes or '',
             })
 
         contenu     = _json.dumps(data, ensure_ascii=False, indent=2)

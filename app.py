@@ -1951,372 +1951,327 @@ def importer_donnees():
         return redirect(url_for('login'))
     if session['role'] != 'Administrateur':
         flash('Accès refusé.', 'danger')
-        return redirect(url_for('sauvegarde'))
-
-    import json as json_module
+        return redirect(url_for('dashboard'))
 
     fichier = request.files.get('fichier_backup')
-    mode    = request.form.get('mode', 'fusionner')  # 'fusionner' ou 'remplacer'
+    mode    = request.form.get('mode', 'fusionner')
 
-    if not fichier or fichier.filename == '':
-        flash('Aucun fichier sélectionné.', 'danger')
-        return redirect(url_for('sauvegarde'))
-
-    if not fichier.filename.endswith('.json'):
+    if not fichier or not fichier.filename.endswith('.json'):
         flash('Format invalide. Veuillez importer un fichier .json', 'danger')
         return redirect(url_for('sauvegarde'))
 
     try:
-        contenu = fichier.read().decode('utf-8')
-        data    = json_module.loads(contenu)
+        data = json.loads(fichier.read().decode('utf-8'))
+    except Exception:
+        flash('Fichier JSON invalide.', 'danger')
+        return redirect(url_for('sauvegarde'))
 
-        # Vérifier que c'est un backup KS Production valide
-        cles_connues = {'factures','clients','operations','paiements',
-                        'services','techniciens','materiels','prestations','depenses'}
-        valide = isinstance(data, dict) and (
-            data.get('version') in ('1.0', '2.0') or
-            'meta' in data or
-            bool(cles_connues & set(data.keys()))
-        )
-        if not valide:
-            flash("Fichier invalide. Ce n'est pas un backup KS Production.", 'danger')
-            return redirect(url_for('sauvegarde'))
+    # Vérifier que c'est un backup KS Production valide
+    cles_connues = {'factures','clients','operations','paiements',
+                    'services','techniciens','materiels','prestations','depenses'}
+    valide = isinstance(data, dict) and (
+        data.get('version') in ('1.0', '2.0') or
+        'meta' in data or
+        bool(cles_connues & set(data.keys()))
+    )
+    if not valide:
+        flash("Fichier invalide. Ce n'est pas un backup KS Production.", 'danger')
+        return redirect(url_for('sauvegarde'))
 
-                # ── Mode REMPLACER : vider les tables d'abord ──
-        if mode == 'remplacer':
-            RecuPaiement.query.delete()
+    # ── Mode REMPLACER : vider les tables ──
+    if mode == 'remplacer':
+        try:
+            EvenementTechnicien.query.delete()
+            EvenementMateriel.query.delete()
             DepensePrestation.query.delete()
+            RecuPaiement.query.delete()
             PrestationArchivee.query.delete()
+            EvenementMateriel.query.delete()
             Evenement.query.delete()
-            Materiel.query.delete()
-            Fournisseur.query.delete()
-            Technicien.query.delete()
             LigneFacture.query.delete()
             Paiement.query.delete()
             Facture.query.delete()
             Operation.query.delete()
+            Materiel.query.delete()
+            Fournisseur.query.delete()
+            Technicien.query.delete()
             Client.query.delete()
             Service.query.delete()
             db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Erreur réinitialisation : {e}', 'danger')
+            return redirect(url_for('sauvegarde'))
 
-        # ── Importer les clients ──
-        nb_clients = 0
-        for c in data.get('clients', []):
-            nom_c = c.get('nom','').strip()
-            if not nom_c: continue
-            # Dédup par nom (le numero peut être absent dans les nouveaux backups)
-            if mode == 'fusionner' and Client.query.filter_by(nom=nom_c).first():
-                continue
-            # Générer un numéro unique si absent
-            num_c = c.get('numero','').strip()
-            if not num_c:
-                import random, string
-                num_c = 'CLI-' + ''.join(random.choices(string.digits, k=6))
-            # Éviter doublons de numéro
-            while Client.query.filter_by(numero=num_c).first():
-                num_c = 'CLI-' + ''.join(random.choices(string.digits, k=6))
-            db.session.add(Client(
-                numero=num_c, nom=nom_c,
-                adresse=c.get('adresse',''), telephone=c.get('telephone',''),
-                email=c.get('email',''), nif=c.get('nif',''), rccm=c.get('rccm',''),
-            ))
-            nb_clients += 1
-        db.session.commit()
+    # ── Importer les clients ──
+    nb_clients = 0
+    import random, string as _str
+    for c in data.get('clients', []):
+        nom_c = c.get('nom','').strip()
+        if not nom_c: continue
+        if mode == 'fusionner' and Client.query.filter_by(nom=nom_c).first():
+            continue
+        num_c = c.get('numero','').strip()
+        if not num_c:
+            num_c = 'CLI-' + ''.join(random.choices(_str.digits, k=6))
+        while Client.query.filter_by(numero=num_c).first():
+            num_c = 'CLI-' + ''.join(random.choices(_str.digits, k=6))
+        db.session.add(Client(numero=num_c, nom=nom_c,
+            adresse=c.get('adresse',''), telephone=c.get('telephone',''),
+            email=c.get('email',''), nif=c.get('nif',''), rccm=c.get('rccm','')))
+        nb_clients += 1
+    db.session.commit()
 
-        # ── Importer les services ──
-        nb_services = 0
-        for s in data.get('services', []):
-            if mode == 'fusionner' and Service.query.filter_by(libelle=s['libelle'], section=s['section']).first():
-                continue
-            db.session.add(Service(
-                section=s.get('section',''), libelle=s.get('libelle',''),
-                prix=s.get('prix', 0), actif=s.get('actif', True),
-            ))
-            nb_services += 1
-        db.session.commit()
+    # ── Importer les services ──
+    nb_services = 0
+    for s in data.get('services', []):
+        lib = s.get('libelle','').strip()
+        if not lib: continue
+        if mode == 'fusionner' and Service.query.filter_by(libelle=lib).first():
+            continue
+        db.session.add(Service(libelle=lib, prix=s.get('prix',0),
+            section=s.get('section',''), actif=s.get('actif', True)))
+        nb_services += 1
+    db.session.commit()
 
-        # ── Importer les factures ──
-        nb_factures = 0
-        for f in data.get('factures', []):
-            num_f = f.get('numero','').strip()
-            if mode == 'fusionner' and num_f and Facture.query.filter_by(numero=num_f).first():
-                continue
-            date_obj = datetime.strptime(f['date'], '%Y-%m-%d') if f.get('date') else datetime.now()
-            # Détecter les proformas par le préfixe du numéro
-            type_op = f.get('type_operation', '')
-            if not type_op:
-                type_op = 'Proforma' if str(num_f).startswith('PROF') else 'Recettes'
-            db.session.add(Facture(
-                numero=num_f or generer_numero_facture('FKSP'),
-                date=date_obj,
-                nom_client=f.get('nom_client',''), service=f.get('service',''),
-                montant_ttc=f.get('montant_ttc', 0), mode_paiement=f.get('mode_paiement',''),
-                etat_paiement=f.get('etat_paiement',''), section=f.get('section',''),
-                type_operation=type_op,
-                cree_par=f.get('cree_par',''), montant_paye=f.get('montant_paye', 0),
-                reste_du=f.get('reste_du', 0),
-            ))
-            nb_factures += 1
-        db.session.commit()
+    # ── Importer les techniciens ──
+    nb_techs = 0
+    for t in data.get('techniciens', []):
+        nom_t = t.get('nom','').strip()
+        if not nom_t: continue
+        if mode == 'fusionner' and Technicien.query.filter_by(nom=nom_t).first():
+            continue
+        db.session.add(Technicien(nom=nom_t, telephone=t.get('telephone',''),
+            email=t.get('email',''), specialite=t.get('specialite',''),
+            role=t.get('role',''), statut_emploi=t.get('statut_emploi','Temporaire'),
+            salaire_base=t.get('salaire_base',0), statut=t.get('statut','Disponible')))
+        nb_techs += 1
+    db.session.commit()
 
-        # ── Importer les lignes de facture ──
-        for l in data.get('lignes', []):
-            fac = Facture.query.filter_by(numero=l.get('facture_numero')).first()
-            if not fac:
-                continue
-            db.session.add(LigneFacture(
-                facture_id=fac.id, service=l.get('service',''),
-                prix_unitaire=l.get('prix_unitaire', 0), quantite=l.get('quantite', 1),
-                montant_ht=l.get('montant_ht', 0), montant_ttc=l.get('montant_ttc', 0),
-            ))
-        db.session.commit()
+    # ── Importer les fournisseurs ──
+    nb_fourni = 0
+    for f in data.get('fournisseurs', []):
+        nom_f = f.get('nom','').strip()
+        if not nom_f: continue
+        if mode == 'fusionner' and Fournisseur.query.filter_by(nom=nom_f).first():
+            continue
+        db.session.add(Fournisseur(nom=nom_f, telephone=f.get('telephone',''),
+            email=f.get('email',''), adresse=f.get('adresse','')))
+        nb_fourni += 1
+    db.session.commit()
 
-        # ── Importer les opérations ──
-        nb_operations = 0
-        for o in data.get('operations', []):
-            num_o = o.get('numero','').strip()
-            if mode == 'fusionner' and num_o and Operation.query.filter_by(numero=num_o).first():
-                continue
-            date_obj = datetime.strptime(o['date'], '%Y-%m-%d') if o.get('date') else datetime.now()
-            db.session.add(Operation(
-                numero=o.get('numero',''), date=date_obj,
-                nom_client=o.get('nom_client',''), service=o.get('service',''),
-                montant_ttc=o.get('montant_ttc', 0), type_operation=o.get('type_operation',''),
-                categorie=o.get('categorie',''), section=o.get('section',''),
-                cree_par=o.get('cree_par',''),
-            ))
-            nb_operations += 1
-        db.session.commit()
+    # ── Importer les matériels ──
+    nb_mat = 0
+    for m in data.get('materiels', []):
+        nom_m = m.get('nom','').strip()
+        if not nom_m: continue
+        if mode == 'fusionner' and Materiel.query.filter_by(nom=nom_m).first():
+            continue
+        fou = Fournisseur.query.filter_by(nom=m.get('fournisseur','')).first() if m.get('fournisseur') else None
+        db.session.add(Materiel(nom=nom_m, categorie=m.get('categorie',''),
+            marque=m.get('marque',''), modele=m.get('modele',''),
+            quantite=m.get('quantite',1), provenance=m.get('provenance','KS Production'),
+            fournisseur_id=fou.id if fou else None))
+        nb_mat += 1
+    db.session.commit()
 
-        # ── Importer les paiements ──
-        nb_paiements = 0
-        for p in data.get('paiements', []):
-            if mode == 'fusionner' and Paiement.query.filter_by(numero=p.get('numero','')).first():
-                continue
-            fac = Facture.query.filter_by(numero=p.get('facture_numero',p.get('n_facture',''))).first()
-            if not fac: continue
-            date_obj = datetime.strptime(p['date'], '%Y-%m-%d') if p.get('date') else datetime.now()
-            db.session.add(Paiement(
-                numero=p.get('numero',''), date=date_obj,
-                facture_id=fac.id, n_facture=p.get('n_facture',''),
-                nom_client=p.get('nom_client',''), montant_facture=p.get('montant_facture', 0),
-                montant_paye=p.get('montant_paye', 0), reste_du=p.get('reste_du', 0),
-                mode_paiement=p.get('mode_paiement',''), etat_facture=p.get('etat_facture',''),
-                notes=p.get('notes',''), cree_par=p.get('cree_par',''),
-            ))
-            nb_paiements += 1
-        db.session.commit()
+    # ── Importer les factures ──
+    nb_factures = 0
+    for f in data.get('factures', []):
+        num_f = f.get('numero','').strip()
+        if mode == 'fusionner' and num_f and Facture.query.filter_by(numero=num_f).first():
+            continue
+        type_op = f.get('type_operation','')
+        if not type_op:
+            type_op = 'Proforma' if str(num_f).startswith('PROF') else 'Recettes'
+        date_str = f.get('date','')
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.now()
+        except Exception:
+            date_obj = datetime.now()
+        db.session.add(Facture(
+            numero=num_f or generer_numero_facture('FKSP'), date=date_obj,
+            nom_client=f.get('nom_client',''), service=f.get('service',''),
+            montant_ttc=f.get('montant_ttc',0), mode_paiement=f.get('mode_paiement','Espece'),
+            etat_paiement=f.get('etat_paiement','Non Payer'), section=f.get('section',''),
+            type_operation=type_op, cree_par=f.get('cree_par',''),
+            montant_paye=f.get('montant_paye',0), reste_du=f.get('reste_du',0)))
+        nb_factures += 1
+    db.session.commit()
 
-        # ── Importer les techniciens ──
-        nb_techs = 0
-        for t in data.get('techniciens', []):
-            if mode == 'fusionner' and Technicien.query.filter_by(nom=t.get('nom','')).first():
-                continue
-            db.session.add(Technicien(
-                nom=t.get('nom',''), telephone=t.get('telephone',''),
-                email=t.get('email',''), specialite=t.get('specialite',''),
-                role=t.get('role',''), statut_emploi=t.get('statut_emploi','Temporaire'),
-                salaire_base=t.get('salaire_base', 0), statut='Disponible',
-            ))
-            nb_techs += 1
-        db.session.commit()
+    # ── Importer les paiements ──
+    nb_paiements = 0
+    for p in data.get('paiements', []):
+        num_p = p.get('numero','').strip()
+        if mode == 'fusionner' and num_p and Paiement.query.filter_by(numero=num_p).first():
+            continue
+        fac = Facture.query.filter_by(numero=p.get('facture_numero','')).first()
+        date_str = p.get('date','')
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.now()
+        except Exception:
+            date_obj = datetime.now()
+        db.session.add(Paiement(
+            numero=num_p, n_facture=p.get('n_facture',''),
+            facture_id=fac.id if fac else None, nom_client=p.get('nom_client',''),
+            montant_facture=p.get('montant_facture',0), montant_paye=p.get('montant_paye',0),
+            reste_du=p.get('reste_du',0), mode_paiement=p.get('mode_paiement',''),
+            etat_facture=p.get('etat_facture',''), notes=p.get('notes',''), date=date_obj))
+        nb_paiements += 1
+    db.session.commit()
 
-        # ── Importer les fournisseurs ──
-        nb_fourni = 0
-        for f in data.get('fournisseurs', []):
-            if mode == 'fusionner' and Fournisseur.query.filter_by(nom=f.get('nom','')).first():
-                continue
-            db.session.add(Fournisseur(
-                nom=f.get('nom',''), telephone=f.get('telephone',''),
-                email=f.get('email',''), adresse=f.get('adresse',''),
-                notes=f.get('notes',''),
-            ))
-            nb_fourni += 1
-        db.session.commit()
+    # ── Importer les opérations ──
+    nb_operations = 0
+    for o in data.get('operations', []):
+        num_o = o.get('numero','').strip()
+        if mode == 'fusionner' and num_o and Operation.query.filter_by(numero=num_o).first():
+            continue
+        date_str = o.get('date','')
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.now()
+        except Exception:
+            date_obj = datetime.now()
+        db.session.add(Operation(
+            numero=num_o, nom_client=o.get('nom_client',''),
+            service=o.get('service',''), montant_ttc=o.get('montant_ttc',0),
+            type_operation=o.get('type_operation',''), section=o.get('section',''),
+            categorie=o.get('categorie',''), date=date_obj))
+        nb_operations += 1
+    db.session.commit()
 
-        # ── Importer les matériels ──
-        nb_mat = 0
-        for m in data.get('materiels', []):
-            if mode == 'fusionner' and Materiel.query.filter_by(nom=m.get('nom','')).first():
-                continue
-            fou = Fournisseur.query.filter_by(nom=m.get('fournisseur','')).first() if m.get('fournisseur') else None
-            db.session.add(Materiel(
-                nom=m.get('nom',''), categorie=m.get('categorie',''),
-                marque=m.get('marque',''), modele=m.get('modele',''),
-                quantite=m.get('quantite', 1), provenance=m.get('provenance','KS Production'),
-                fournisseur_id=fou.id if fou else None,
-            ))
-            nb_mat += 1
-        db.session.commit()
+    # ── Importer les prestations ──
+    nb_presta = 0
+    for e in data.get('prestations', []):
+        titre = e.get('titre','').strip()
+        if not titre: continue
+        if mode == 'fusionner' and Evenement.query.filter_by(titre=titre).first():
+            continue
+        date_str = e.get('date','')
+        try:
+            from datetime import date as _date
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d').date() if date_str else datetime.now().date()
+        except Exception:
+            date_obj = datetime.now().date()
+        fac = Facture.query.filter_by(numero=e.get('facture_numero','')).first() if e.get('facture_numero') else None
+        db.session.add(Evenement(
+            titre=titre, nom_client=e.get('nom_client',''),
+            lieu=e.get('lieu',''), section=e.get('section',''),
+            statut=e.get('statut','Confirme'), service=e.get('service',''),
+            notes=e.get('notes',''), heure_debut=e.get('heure_debut',''),
+            heure_fin=e.get('heure_fin',''), date=date_obj,
+            facture_id=fac.id if fac else None))
+        nb_presta += 1
+    db.session.commit()
 
-        # ── Importer les prestations ──
-        nb_presta = 0
-        for e in data.get('prestations', []):
-            date_obj = datetime.strptime(e['date'], '%Y-%m-%d') if e.get('date') else datetime.now()
-            db.session.add(Evenement(
-                titre=e.get('titre',''), date=date_obj,
-                nom_client=e.get('nom_client',''), lieu=e.get('lieu',''),
-                section=e.get('section',''), statut=e.get('statut','Confirmé'),
-                service=e.get('service',''), notes=e.get('notes',''),
-            ))
-            nb_presta += 1
-        db.session.commit()
+    # ── Importer les reçus ──
+    nb_recus = 0
+    for r in data.get('recus', []):
+        num_r = r.get('numero','').strip()
+        if mode == 'fusionner' and num_r and RecuPaiement.query.filter_by(numero=num_r).first():
+            continue
+        tech = Technicien.query.filter_by(nom=r.get('technicien_nom','')).first() if r.get('technicien_nom') else None
+        date_str = r.get('date','')
+        try:
+            date_obj = datetime.strptime(date_str, '%Y-%m-%d') if date_str else datetime.now()
+        except Exception:
+            date_obj = datetime.now()
+        db.session.add(RecuPaiement(
+            numero=num_r, beneficiaire=r.get('beneficiaire',''),
+            technicien_id=tech.id if tech else None,
+            type_recu=r.get('type_recu','Recu Prestation'),
+            salaire_base=r.get('salaire_base',0), total_primes=r.get('total_primes',0),
+            total_net=r.get('total_net',0), mois=r.get('mois',''),
+            notes=r.get('notes',''), cree_par=r.get('cree_par',''), date=date_obj))
+        nb_recus += 1
+    db.session.commit()
 
-        # ── Importer les dépenses prestations ──
-        nb_depenses = 0
-        for d in data.get('depenses', []):
-            # Trouver la prestation associée par titre si possible
-            evt = None
-            if d.get('evenement_titre'):
-                evt = Evenement.query.filter_by(titre=d['evenement_titre']).first()
-            db.session.add(DepensePrestation(
-                type_depense  = d.get('type_depense', 'Autre'),
-                description   = d.get('description', ''),
-                beneficiaire  = d.get('beneficiaire', ''),
-                montant       = d.get('montant', 0),
-                statut        = d.get('statut', 'En attente'),
-                evenement_id  = evt.id if evt else None,
-            ))
-            nb_depenses += 1
-        db.session.commit()
+    # ── Importer les dépenses ──
+    nb_depenses = 0
+    for d in data.get('depenses', []):
+        evt = Evenement.query.filter_by(titre=d.get('evenement_titre','')).first() if d.get('evenement_titre') else None
+        if not evt:
+            evt = Evenement.query.first()
+        if not evt:
+            continue
+        tech = Technicien.query.filter_by(nom=d.get('technicien_nom','')).first() if d.get('technicien_nom') else None
+        recu = RecuPaiement.query.filter_by(numero=d.get('recu_numero','')).first() if d.get('recu_numero') else None
+        date_paie = None
+        if d.get('date_paiement'):
+            try:
+                date_paie = datetime.strptime(d['date_paiement'], '%Y-%m-%d')
+            except Exception:
+                pass
+        db.session.add(DepensePrestation(
+            evenement_id=evt.id, type_depense=d.get('type_depense','Autre'),
+            description=d.get('description',''), beneficiaire=d.get('beneficiaire',''),
+            technicien_id=tech.id if tech else None,
+            montant=d.get('montant',0), statut=d.get('statut','En attente'),
+            recu_id=recu.id if recu else None, date_paiement=date_paie))
+        nb_depenses += 1
+    db.session.commit()
 
-        # ── Importer les archives ──
-        nb_archives = 0
-        for a in data.get('archives', []):
-            # Retrouver l'événement associé
-            evt = None
-            if a.get('evenement_titre'):
-                evt = Evenement.query.filter_by(titre=a['evenement_titre']).first()
-            if not evt:
-                continue  # Pas d'archive sans événement
+    # ── Importer assignations techniciens ──
+    nb_assign_tech = 0
+    for at in data.get('assignations_tech', []):
+        evt  = Evenement.query.filter_by(titre=at.get('evenement_titre','')).first()
+        tech = Technicien.query.filter_by(nom=at.get('technicien_nom','')).first()
+        if not evt or not tech: continue
+        if mode == 'fusionner' and EvenementTechnicien.query.filter_by(evenement_id=evt.id, technicien_id=tech.id).first():
+            continue
+        db.session.add(EvenementTechnicien(
+            evenement_id=evt.id, technicien_id=tech.id, role=at.get('role','')))
+        nb_assign_tech += 1
+    db.session.commit()
 
-            # Vérifier si déjà archivé
-            if PrestationArchivee.query.filter_by(evenement_id=evt.id).first():
-                continue
+    # ── Importer assignations matériels ──
+    nb_assign_mat = 0
+    for am in data.get('assignations_mat', []):
+        evt = Evenement.query.filter_by(titre=am.get('evenement_titre','')).first()
+        mat = Materiel.query.filter_by(nom=am.get('materiel_nom','')).first()
+        if not evt or not mat: continue
+        if mode == 'fusionner' and EvenementMateriel.query.filter_by(evenement_id=evt.id, materiel_id=mat.id).first():
+            continue
+        db.session.add(EvenementMateriel(
+            evenement_id=evt.id, materiel_id=mat.id,
+            quantite=am.get('quantite',1), notes=am.get('notes','')))
+        nb_assign_mat += 1
+    db.session.commit()
 
-            date_arch = datetime.strptime(a['date_archivage'], '%Y-%m-%d') if a.get('date_archivage') else datetime.now()
-            db.session.add(PrestationArchivee(
-                evenement_id    = evt.id,
-                date_archivage  = date_arch,
-                total_recettes  = a.get('total_recettes', 0),
-                total_depenses  = a.get('total_depenses', 0),
-                benefice_net    = a.get('benefice_net', 0),
-                nb_depenses     = a.get('nb_depenses', 0),
-                archive_par     = a.get('archive_par', ''),
-                notes           = a.get('notes', ''),
-            ))
-            nb_archives += 1
-        db.session.commit()
+    # ── Importer les archives ──
+    nb_archives = 0
+    for a in data.get('archives', []):
+        evt = Evenement.query.filter_by(titre=a.get('evenement_titre','')).first()
+        if not evt: continue
+        if PrestationArchivee.query.filter_by(evenement_id=evt.id).first():
+            continue
+        date_arch = datetime.now()
+        if a.get('date_archivage'):
+            try:
+                date_arch = datetime.strptime(a['date_archivage'], '%Y-%m-%d')
+            except Exception:
+                pass
+        db.session.add(PrestationArchivee(
+            evenement_id=evt.id, date_archivage=date_arch,
+            total_recettes=a.get('total_recettes',0),
+            total_depenses=a.get('total_depenses',0),
+            benefice_net=a.get('benefice_net',0),
+            nb_depenses=a.get('nb_depenses',0),
+            archive_par=a.get('archive_par',''),
+            notes=a.get('notes','')))
+        nb_archives += 1
+    db.session.commit()
 
-        flash(
-            f'✅ Import réussi ! '
-            f'{nb_clients} client(s), {nb_services} service(s), '
-            f'{nb_factures} facture(s), {nb_operations} opération(s), '
-            f'{nb_paiements} paiement(s), {nb_techs} technicien(s), '
-            f'{nb_fourni} fournisseur(s), {nb_mat} matériel(s), '
-            f'{nb_presta} prestation(s), {nb_depenses} dépense(s), '
-            f'{nb_archives} archive(s) importé(s).',
-            'success'
-        )
-
-    except Exception as e:
-        db.session.rollback()
-        flash(f'Erreur lors de l\'import : {str(e)}', 'danger')
-
-    return redirect(url_for('sauvegarde'))
-
-
-# ================================================================
-# ROUTES PROFORMA — à ajouter dans app.py
-# ================================================================
-
-@app.route('/factures/proforma', methods=['GET', 'POST'])
-def nouvelle_proforma():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    if session['role'] == 'Lecture seule':
-        flash('Accès refusé.', 'danger')
-        return redirect(url_for('liste_factures'))
-
-    if request.method == 'POST':
-        # Générer numéro proforma unique
-        numero = generer_numero_facture('PROF')
-
-        nom_client    = request.form['nom_client']
-        mode_paiement = request.form.get('mode_paiement', 'Espece')
-        section       = request.form['section']
-        tva_taux      = float(request.form.get('tva_taux', 18))
-        notes         = request.form.get('notes', '')
-
-        services_f     = request.form.getlist('service[]')
-        prix_unitaires = request.form.getlist('prix_unitaire[]')
-        quantites      = request.form.getlist('quantite[]')
-
-        montant_ttc_total = 0
-        lignes_data = []
-        for i in range(len(services_f)):
-            svc = services_f[i].strip()
-            if not svc: continue
-            pu  = float(prix_unitaires[i]) if prix_unitaires[i] else 0
-            qty = int(quantites[i]) if quantites[i] else 1
-            ht  = pu * qty
-            tva = round(ht * tva_taux / 100, 2)
-            ttc = ht + tva
-            montant_ttc_total += ttc
-            lignes_data.append({
-                'service': svc, 'prix_unitaire': pu,
-                'quantite': qty, 'montant_ht': ht, 'montant_ttc': ttc
-            })
-
-        # Créer la facture avec type_operation = 'Proforma'
-        facture = Facture(
-            numero        = numero,
-            nom_client    = nom_client,
-            service       = lignes_data[0]['service'] if lignes_data else '',
-            montant_ttc   = montant_ttc_total,
-            mode_paiement = mode_paiement,
-            etat_paiement = 'Non Payer',
-            type_operation= 'Proforma',   # ← marqueur proforma
-            section       = section,
-            cree_par      = session['username'],
-            montant_paye  = 0,
-            reste_du      = montant_ttc_total,
-        )
-        db.session.add(facture)
-        db.session.flush()
-
-        for ld in lignes_data:
-            db.session.add(LigneFacture(
-                facture_id    = facture.id,
-                service       = ld['service'],
-                prix_unitaire = ld['prix_unitaire'],
-                quantite      = ld['quantite'],
-                montant_ht    = ld['montant_ht'],
-                montant_ttc   = ld['montant_ttc'],
-            ))
-        db.session.commit()
-
-        flash(f'Proforma {numero} créée avec succès !', 'success')
-        # Si ouvert en fenêtre PyWebView → fermer et rafraîchir
-        if request.args.get('popup') == '1':
-            return render_template('fermer_fenetre.html',
-                message=f'Proforma {numero} créée avec succès !',
-                reload_url='/proformas')
-        return redirect(url_for('liste_proformas'))
-
-    # GET
-    numero_auto = generer_numero_facture('PROF')
-
-    services_list = Service.query.filter_by(actif=True).order_by(Service.section, Service.libelle).all()
-
-    return render_template('nouvelle_proforma.html',
-        username     = session['username'],
-        role         = session['role'],
-        numero_auto  = numero_auto,
-        clients      = Client.query.all(),
-        today        = datetime.now().strftime('%Y-%m-%d'),
-        services_list= services_list,
+    flash(
+        f'✅ Import réussi ! {nb_clients} client(s), {nb_services} service(s), '
+        f'{nb_factures} facture(s), {nb_operations} opération(s), '
+        f'{nb_paiements} paiement(s), {nb_techs} technicien(s), '
+        f'{nb_fourni} fournisseur(s), {nb_mat} matériel(s), '
+        f'{nb_presta} prestation(s), {nb_depenses} dépense(s), '
+        f'{nb_recus} reçu(s), {nb_assign_tech} assignation(s) tech, '
+        f'{nb_assign_mat} assignation(s) mat, {nb_archives} archive(s).',
+        'success'
     )
+    return redirect(url_for('sauvegarde'))
 
 
 @app.route('/proformas')
