@@ -7,7 +7,18 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
 from database import db, Utilisateur, Client, Facture, Operation, Parametres, LigneFacture, Service, Paiement, Evenement, Technicien, EvenementTechnicien, Materiel, EvenementMateriel, Fournisseur, DepensePrestation, PrestationArchivee, RecuPaiement
 
-app = Flask(__name__)
+import sys, os
+
+def _base_dir():
+    """Racine du projet (fonctionne normal + PyInstaller)"""
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+
+app = Flask(__name__,
+    template_folder=os.path.join(_base_dir(), 'templates'),
+    static_folder  =os.path.join(_base_dir(), 'static'),
+)
 app.secret_key = os.environ.get('SECRET_KEY', 'ks_production_2026')
 
 # ── Chemin absolu (robuste quel que soit le CWD) ──────────────────

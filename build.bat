@@ -1,50 +1,59 @@
 @echo off
-REM ================================================================
-REM build.bat — Génère KS_Production.exe avec PyInstaller
-REM Double-cliquer pour lancer le build
-REM ================================================================
-
 echo.
-echo ===================================
-echo   BUILD KS Production Desktop
-echo ===================================
+echo ================================================
+echo    KS Production - Build PyInstaller
+echo ================================================
 echo.
 
-REM Installer les dépendances si nécessaire
-pip install -r requirements_desktop.txt
+set PYINST=py -3.11 -m PyInstaller
 
-echo.
-echo [1/2] Nettoyage des anciens builds...
-rmdir /s /q build 2>nul
-rmdir /s /q dist 2>nul
-del KS_Production.spec 2>nul
+REM Nettoyage
+echo [1/4] Nettoyage...
+if exist build rmdir /s /q build
+if exist dist rmdir /s /q dist
+del /q *.spec 2>nul
+echo OK
 
+REM BUILD SERVEUR
 echo.
-echo [2/2] Génération du .exe...
-pyinstaller ^
-    --name "KS_Production" ^
-    --windowed ^
-    --onefile ^
-    --icon "static\img\favicon.ico" ^
-    --add-data "templates;templates" ^
-    --add-data "static;static" ^
-    --hidden-import "webview" ^
-    --hidden-import "flask" ^
-    --hidden-import "flask_sqlalchemy" ^
-    --hidden-import "reportlab" ^
-    --hidden-import "sqlalchemy" ^
-    --hidden-import "werkzeug" ^
-    main.py
+echo [2/4] Build KS_Server.exe ...
+%PYINST% main.py --name "KS_Server" --onefile --windowed --add-data "templates;templates" --add-data "static;static" --add-data "database.py;." --hidden-import "sqlalchemy.dialects.sqlite" --hidden-import "sqlalchemy.orm" --hidden-import "flask" --hidden-import "flask_sqlalchemy" --hidden-import "werkzeug" --hidden-import "jinja2" --hidden-import "reportlab" --hidden-import "webview" --hidden-import "webview.platforms.winforms" --collect-all "webview" --collect-all "weasyprint" --collect-all "reportlab" --noconfirm
 
-echo.
-echo ===================================
-if exist "dist\KS_Production.exe" (
-    echo   SUCCES ! Fichier cree :
-    echo   dist\KS_Production.exe
-) else (
-    echo   ERREUR : Le build a echoue.
-    echo   Verifiez les messages ci-dessus.
+if %ERRORLEVEL% NEQ 0 (
+    echo ERREUR Build Serveur!
+    pause
+    exit /b 1
 )
-echo ===================================
+echo KS_Server.exe OK
+
+REM BUILD CLIENT
+echo.
+echo [3/4] Build KS_Client.exe ...
+%PYINST% client.py --name "KS_Client" --onefile --windowed --add-data "static;static" --hidden-import "webview" --hidden-import "webview.platforms.winforms" --collect-all "webview" --noconfirm
+
+if %ERRORLEVEL% NEQ 0 (
+    echo ERREUR Build Client!
+    pause
+    exit /b 1
+)
+echo KS_Client.exe OK
+
+REM ORGANISATION
+echo.
+echo [4/4] Organisation...
+
+if not exist "dist\KS_Production_Server" mkdir "dist\KS_Production_Server"
+copy "dist\KS_Server.exe" "dist\KS_Production_Server\" > nul
+
+if not exist "dist\KS_Production_Client" mkdir "dist\KS_Production_Client"
+copy "dist\KS_Client.exe" "dist\KS_Production_Client\" > nul
+copy "server_config.ini" "dist\KS_Production_Client\" > nul
+
+echo.
+echo ================================================
+echo  BUILD TERMINE !
+echo  dist\KS_Production_Server\KS_Server.exe
+echo  dist\KS_Production_Client\KS_Client.exe
+echo ================================================
 echo.
 pause
