@@ -7,6 +7,7 @@ DefaultDirName={autopf}\KS Production\Serveur
 DefaultGroupName=KS Production
 OutputDir=installer_output
 OutputBaseFilename=KS_Server_Setup
+SetupIconFile=static\icons\ks_production.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=admin
