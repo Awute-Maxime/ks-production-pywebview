@@ -289,20 +289,34 @@
     var CLIENT_TEL  = {{ (client.telephone if client and client.telephone else '') | tojson }};
 
     // ── Fonctions toolbar ─────────────────────────────────────────────
+    var _ksCtx = null;
+    function _ksIsDesktop(cb) {
+        if (_ksCtx !== null) { cb(_ksCtx); return; }
+        fetch('/api/contexte').then(function(r){ return r.json(); }).then(function(d){ _ksCtx = d.desktop; cb(d.desktop); }).catch(function(){ _ksCtx = false; cb(false); });
+    }
     function fermerFenetre() {
-        fetch('/api/close-window').catch(function(){});
-        setTimeout(function(){ window.close(); }, 200);
+        if (window.parent !== window) { try { window.parent.ksFermerModal(); } catch(e) {} return; }
+        _ksIsDesktop(function(desktop) {
+            if (desktop) { fetch('/api/close-window').catch(function(){}); }
+            else { history.back(); }
+        });
     }
 
     function enregistrerPDF() {
-        var btn = document.getElementById('btnSave');
-        var orig = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> En cours...';
-        btn.disabled = true;
-        fetch('/api/enregistrer-pdf?type=proforma&id=' + PROFORMA_ID)
-            .then(function(r){ return r.json(); })
-            .then(function(d){ btn.innerHTML = orig; btn.disabled = false; })
-            .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+        var downloadUrl = '/proformas/telecharger/' + PROFORMA_ID;
+        if (window.location.search.includes('_dt=')) {
+            var btn = document.getElementById('btnSave');
+            var orig = btn ? btn.innerHTML : '';
+            if (btn) { btn.innerHTML = '<i class="bi bi-hourglass-split"></i> En cours...'; btn.disabled = true; }
+            fetch('/api/enregistrer-pdf?type=proforma&id=' + PROFORMA_ID)
+                .then(function(r){ return r.json(); })
+                .then(function(d){ if(btn){btn.innerHTML=orig;btn.disabled=false;} })
+                .catch(function(){ if(btn){btn.innerHTML=orig;btn.disabled=false;} });
+        } else if (window.parent !== window) {
+            try { window.parent.ksDeclencharTelechargement(downloadUrl); } catch(e) { window.location.href = downloadUrl; }
+        } else {
+            window.location.href = downloadUrl;
+        }
     }
 
     function partager(canal) {

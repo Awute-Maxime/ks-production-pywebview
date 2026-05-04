@@ -299,7 +299,6 @@
 
     function fermerFenetre() {
         fetch('/api/close-window').catch(function(){});
-        setTimeout(function(){ window.close(); }, 200);
     }
 
     function enregistrerPDF() {

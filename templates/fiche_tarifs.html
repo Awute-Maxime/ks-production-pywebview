@@ -179,10 +179,13 @@
 <!-- BARRE ACTIONS -->
 <div class="action-bar d-print-none">
     <div class="brand">🎵 {{ params.nom_entreprise }} — <em>Fiche Tarifs</em></div>
-    <div style="display:flex; gap:8px;">
-        <a href="/services" class="btn-act"><i class="bi bi-arrow-left"></i> Retour</a>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="#" onclick="fermerFenetre()" class="btn-act"><i class="bi bi-arrow-left"></i> Retour</a>
         <button onclick="window.print()" class="btn-act btn-print">
             <i class="bi bi-printer"></i> Imprimer / PDF
+        </button>
+        <button id="btnSauvegarder" class="btn-act" style="background:#6c5ce7;border-color:#6c5ce7;">
+            <i class="bi bi-download"></i> Enregistrer PDF
         </button>
         <button id="btnWhatsApp" class="btn-act" style="background:#25D366;border-color:#25D366;">
             <i class="bi bi-whatsapp"></i> WhatsApp
@@ -336,39 +339,53 @@
 
 
 <script>
+function fermerFenetre() {
+    if (window.parent !== window) { try { window.parent.ksFermerModal(); } catch(e) {} return; }
+    if (window.location.search.includes('_dt=')) {
+        fetch('/api/close-window').catch(function(){});
+        setTimeout(function(){ window.close(); }, 200);
+    } else {
+        history.back();
+    }
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // Retour
-    var retour = document.querySelector('.action-bar a[href*="/services"]');
-    if (retour) {
-        retour.addEventListener('click', function(e) {
-            e.preventDefault(); e.stopPropagation();
-            fetch('/api/close-window').catch(function(){});
-            setTimeout(function(){ window.close(); }, 200);
+    var isDesktop = window.location.search.includes('_dt=');
+
+    // Bouton Enregistrer PDF
+    var btnSave = document.getElementById('btnSauvegarder');
+    if (btnSave) {
+        btnSave.addEventListener('click', function() {
+            var downloadUrl = '/services/telecharger-tarifs';
+            if (isDesktop) {
+                var orig = btnSave.innerHTML;
+                btnSave.innerHTML = '<i class="bi bi-hourglass-split"></i> ...'; btnSave.disabled = true;
+                fetch('/api/enregistrer-fiche-tarifs')
+                    .then(function(r){ return r.json(); })
+                    .then(function(d){ btnSave.innerHTML = orig; btnSave.disabled = false; })
+                    .catch(function(){ btnSave.innerHTML = orig; btnSave.disabled = false; });
+            } else if (window.parent !== window) {
+                try { window.parent.ksDeclencharTelechargement(downloadUrl); } catch(e) { window.location.href = downloadUrl; }
+            } else {
+                window.location.href = downloadUrl;
+            }
         });
     }
 
-    // WhatsApp & Email - partager la fiche tarifs
-    function partagerFicheTarifs(canal) {
-        var btnId = canal === 'whatsapp' ? 'btnWhatsApp' : 'btnEmail';
+    // WhatsApp & Email (uniquement desktop)
+    function actionFeedback(btnId, url) {
         var btn = document.getElementById(btnId);
-        var orig = btn.innerHTML;
-        btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ...';
-        btn.disabled = true;
-
-        fetch('/api/partager-fiche-tarifs?canal=' + canal)
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-                btn.innerHTML = orig; btn.disabled = false;
-                if (d.chemin) alert('PDF pret :\n' + d.chemin + '\n\nAttachez-le dans ' + (canal==='whatsapp'?'WhatsApp':'votre mail') + '.');
-                else if (d.error) alert('Erreur : ' + d.error);
-            })
-            .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+        if (!btn) return;
+        btn.addEventListener('click', function() {
+            var orig = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-hourglass-split"></i> ...'; btn.disabled = true;
+            fetch(url).then(function(r){ return r.json(); })
+                .then(function(d){ btn.innerHTML = orig; btn.disabled = false; if(d.error) alert('Erreur : '+d.error); })
+                .catch(function(){ btn.innerHTML = orig; btn.disabled = false; });
+        });
     }
-
-    var btnWA = document.getElementById('btnWhatsApp');
-    var btnEM = document.getElementById('btnEmail');
-    if (btnWA) btnWA.addEventListener('click', function(e){ e.preventDefault(); partagerFicheTarifs('whatsapp'); });
-    if (btnEM) btnEM.addEventListener('click', function(e){ e.preventDefault(); partagerFicheTarifs('email'); });
+    actionFeedback('btnWhatsApp', '/api/partager-fiche-tarifs?canal=whatsapp');
+    actionFeedback('btnEmail',    '/api/partager-fiche-tarifs?canal=email');
 });
 </script>
 </body>

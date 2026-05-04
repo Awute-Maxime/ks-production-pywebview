@@ -26,14 +26,14 @@ class Client(db.Model):
 class Facture(db.Model):
     __tablename__  = 'factures'
     id             = db.Column(db.Integer, primary_key=True)
-    numero         = db.Column(db.String(30), unique=True, nullable=False)
-    date           = db.Column(db.DateTime, default=datetime.now)
+    numero         = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    date           = db.Column(db.DateTime, default=datetime.now, index=True)
     nom_client     = db.Column(db.String(100), nullable=False)
     service        = db.Column(db.String(200), nullable=False)
     montant_ttc    = db.Column(db.Float, nullable=False)
     mode_paiement  = db.Column(db.String(50))
-    etat_paiement  = db.Column(db.String(20), default='Non Payer')
-    type_operation = db.Column(db.String(20), default='Recettes')
+    etat_paiement  = db.Column(db.String(20), default='Non Payer', index=True)
+    type_operation = db.Column(db.String(20), default='Recettes', index=True)
     categorie      = db.Column(db.String(20), default='Facture')
     section        = db.Column(db.String(50))
     cree_par       = db.Column(db.String(50))
@@ -43,12 +43,12 @@ class Facture(db.Model):
 class Operation(db.Model):
     __tablename__  = 'operations'
     id             = db.Column(db.Integer, primary_key=True)
-    numero         = db.Column(db.String(30), unique=True, nullable=False)
-    date           = db.Column(db.DateTime, default=datetime.now)
+    numero         = db.Column(db.String(30), unique=True, nullable=False, index=True)
+    date           = db.Column(db.DateTime, default=datetime.now, index=True)
     nom_client     = db.Column(db.String(100))
     service        = db.Column(db.String(200))
     montant_ttc    = db.Column(db.Float)
-    type_operation = db.Column(db.String(20))
+    type_operation = db.Column(db.String(20), index=True)
     categorie      = db.Column(db.String(20))
     section        = db.Column(db.String(50))
     cree_par       = db.Column(db.String(50))
@@ -110,7 +110,7 @@ class Evenement(db.Model):
     __tablename__ = 'evenement'
     id            = db.Column(db.Integer, primary_key=True)
     titre         = db.Column(db.String(200), nullable=False)
-    date          = db.Column(db.Date, default=datetime.utcnow)
+    date          = db.Column(db.Date, default=datetime.utcnow, index=True)
     heure_debut   = db.Column(db.String(10), nullable=True)
     heure_fin     = db.Column(db.String(10), nullable=True)
     nom_client    = db.Column(db.String(150), nullable=True)

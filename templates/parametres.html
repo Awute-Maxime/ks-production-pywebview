@@ -787,9 +787,16 @@ function initBadgeAlertes() {
     }).catch(() => {});
 }
 document.addEventListener('DOMContentLoaded', initBadgeAlertes);
+    var _ksDesktop = {{ _ks_is_desktop | tojson }};
     function ouvrirApercu(url, titre) {
-        fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=' + encodeURIComponent(titre))
-            .catch(() => {});
+        const fullUrl = url.startsWith('/') ? url : '/' + url;
+        if (_ksDesktop) {
+            fetch('/api/open-window?url=' + encodeURIComponent(fullUrl) + '&title=' + encodeURIComponent(titre))
+                .then(r => r.json())
+                .catch(() => { window.location.href = fullUrl; });
+        } else {
+            window.location.href = fullUrl;
+        }
     }
 </script>
 </body>

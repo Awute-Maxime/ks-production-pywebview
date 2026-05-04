@@ -1,10 +1,10 @@
 import os
 import io
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify, send_from_directory
 from database import db, Utilisateur, Client, Facture, Operation, Parametres, LigneFacture, Service, Paiement, Evenement, Technicien, EvenementTechnicien, Materiel, EvenementMateriel, Fournisseur, DepensePrestation, PrestationArchivee, RecuPaiement
 
 import sys, os
@@ -20,6 +20,7 @@ app = Flask(__name__,
     static_folder  =os.path.join(_base_dir(), 'static'),
 )
 app.secret_key = os.environ.get('SECRET_KEY', 'ks_production_2026')
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 
 # ── Chemin absolu (robuste quel que soit le CWD) ──────────────────
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -138,6 +139,11 @@ def generer_numero_facture(prefix='FKSP'):
     return numero
 
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(app.static_folder, 'icons'), 'favicon-32x32.png', mimetype='image/png')
+
+
 @app.route('/')
 def accueil():
     return redirect(url_for('login'))
@@ -147,8 +153,8 @@ def accueil():
 def login():
     erreur = None
     if request.method == 'POST':
-        username = request.form['username']
-        password = request.form['password']
+        username = request.form.get('username', '').strip()
+        password = request.form.get('password', '')
         user = Utilisateur.query.filter_by(username=username).first()
         if user and check_password_hash(user.password, password):
             session['username'] = user.username
@@ -253,8 +259,10 @@ def dashboard():
 
     primes_attente   = DepensePrestation.query.filter_by(statut='En attente').all()
     total_primes_att = sum(p.montant for p in primes_attente)
+    _evts_ids = {p.evenement_id for p in primes_attente}
+    _evts_map = {e.id: e for e in Evenement.query.filter(Evenement.id.in_(_evts_ids)).all()} if _evts_ids else {}
     for p in primes_attente:
-        p._evt = Evenement.query.get(p.evenement_id)
+        p._evt = _evts_map.get(p.evenement_id)
 
     nb_materiels    = Materiel.query.count()
     nb_fournisseurs = Fournisseur.query.count()
@@ -294,6 +302,26 @@ def dashboard():
         factures_values=json.dumps(factures_values),
         dernieres_ops=dernieres_ops,
     )
+
+
+@app.context_processor
+def inject_ks_context():
+    return {'_ks_is_desktop': bool(session.get('_ks_desktop', False))}
+
+@app.after_request
+def no_cache(response):
+    if 'text/html' in response.content_type:
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+    return response
+
+@app.route('/api/contexte')
+def api_contexte():
+    is_desktop = (
+        session.get('_ks_desktop', False) or
+        request.headers.get('X-KS-Desktop') == 'true'
+    )
+    return jsonify({'desktop': bool(is_desktop)})
 
 
 @app.route('/api/alertes')
@@ -874,12 +902,12 @@ def generer_pdf_facture(id):
     story.append(Table([[
         Paragraph(f'{mentions}\n<i>Merci pour votre confiance — {nom_entreprise}</i>',
             ParagraphStyle('ft', fontSize=7, fontName='Helvetica', textColor=KS_GRAY, leading=11)),
-        Table([[
-            Paragraph('Cachet &amp; Signature',
-                ParagraphStyle('sig', fontSize=7, fontName='Helvetica', textColor=colors.HexColor('#d1d5db'), alignment=TA_CENTER)),
-            Paragraph(f'Autorisé par {nom_entreprise}',
-                ParagraphStyle('auth', fontSize=7, fontName='Helvetica', textColor=KS_GRAY, alignment=TA_CENTER)),
-        ]], colWidths=[6*cm], rowHeights=[40, 12]),
+        Table([
+            [Paragraph('Cachet &amp; Signature',
+                ParagraphStyle('sig', fontSize=7, fontName='Helvetica', textColor=colors.HexColor('#d1d5db'), alignment=TA_CENTER))],
+            [Paragraph(f'Autorisé par {nom_entreprise}',
+                ParagraphStyle('auth', fontSize=7, fontName='Helvetica', textColor=KS_GRAY, alignment=TA_CENTER))],
+        ], colWidths=[6*cm], rowHeights=[40, 12]),
     ]], colWidths=[9.4*cm, 6*cm]))
 
     doc.build(story)
@@ -1258,6 +1286,31 @@ def fiche_tarifs():
         date_maj=datetime.now().strftime('%d/%m/%Y'), annee=datetime.now().year,
     )
 
+
+@app.route('/services/telecharger-tarifs')
+def telecharger_fiche_tarifs():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    from weasyprint import HTML, CSS
+    from datetime import date as _date
+    with app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess['username'] = session['username']
+            sess['role']     = session['role']
+        resp = c.get('/services/fiche-tarifs')
+    html = resp.data.decode('utf-8')
+    extra_css = CSS(string=(
+        '* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }'
+        '.action-bar, .d-print-none { display: none !important; }'
+        'body { background: white !important; margin: 0; }'
+        '.page-wrap { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }'
+        '.fiche { box-shadow: none !important; border-radius: 0 !important; }'
+    ))
+    pdf_bytes = HTML(string=html, base_url='http://127.0.0.1:5000').write_pdf(stylesheets=[extra_css])
+    filename = f"FicheTarifs_{_date.today().strftime('%d%m%Y')}.pdf"
+    return send_file(io.BytesIO(pdf_bytes), mimetype='application/pdf',
+                     as_attachment=True, download_name=filename)
+
 # ================================================================
 # UTILISATEURS
 # ================================================================
@@ -1368,8 +1421,9 @@ def parametres():
         logo = request.files.get('logo')
         if logo and logo.filename:
             filename = secure_filename(logo.filename)
-            logo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            params.logo_filename = filename
+            if allowed_file(filename):
+                logo.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                params.logo_filename = filename
 
         # Cachet numérisé
         if request.form.get('supprimer_cachet') == '1' and params.cachet_filename:
@@ -1380,8 +1434,9 @@ def parametres():
         cachet = request.files.get('cachet')
         if cachet and cachet.filename:
             filename = secure_filename(cachet.filename)
-            cachet.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            params.cachet_filename = filename
+            if allowed_file(filename):
+                cachet.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                params.cachet_filename = filename
 
         db.session.commit()
         flash('Paramètres enregistrés !', 'success')
@@ -1405,7 +1460,7 @@ def rapport():
     try:
         d_debut = datetime.strptime(date_debut, '%Y-%m-%d')
         d_fin   = datetime.strptime(date_fin,   '%Y-%m-%d').replace(hour=23, minute=59, second=59)
-    except:
+    except ValueError:
         d_debut = datetime(today.year, today.month, 1); d_fin = datetime.now()
 
     query_ops = Operation.query.filter(Operation.date >= d_debut, Operation.date <= d_fin)
@@ -1670,6 +1725,10 @@ def reinitialiser():
             if 'factures' in options:
                 LigneFacture.query.delete()
                 Paiement.query.delete()
+                # Couper le lien facture dans les événements restants
+                for evt in Evenement.query.all():
+                    evt.facture_id = None
+                db.session.flush()
                 Facture.query.delete()
                 db.session.commit()
 
@@ -1686,11 +1745,23 @@ def reinitialiser():
                 db.session.commit()
 
             if 'materiels' in options:
+                # Supprimer d'abord les assignations matériels liées
+                from database import EvenementMateriel as _EM
+                _EM.query.delete()
                 Materiel.query.delete()
                 Fournisseur.query.delete()
                 db.session.commit()
 
             if 'techniciens' in options:
+                from database import EvenementTechnicien as _ET
+                # Supprimer les assignations techniciens liées
+                _ET.query.delete()
+                # Couper les références dans dépenses et reçus (ne pas supprimer, juste détacher)
+                for d in DepensePrestation.query.all():
+                    d.technicien_id = None
+                for r in RecuPaiement.query.all():
+                    r.technicien_id = None
+                db.session.flush()
                 Technicien.query.delete()
                 db.session.commit()
 
@@ -1823,6 +1894,7 @@ def exporter_donnees():
             'montant_ttc'   : f.montant_ttc,
             'mode_paiement' : f.mode_paiement,
             'etat_paiement' : f.etat_paiement,
+            'type_operation': f.type_operation,
             'section'       : f.section,
             'cree_par'      : f.cree_par,
             'montant_paye'  : f.montant_paye,
@@ -1893,11 +1965,12 @@ def exporter_donnees():
     data['fournisseurs'] = []
     for f in Fournisseur.query.all():
         data['fournisseurs'].append({
-            'nom'      : f.nom,
-            'telephone': f.telephone,
-            'email'    : f.email,
-            'adresse'  : f.adresse,
-            'notes'    : f.notes,
+            'nom'         : f.nom,
+            'telephone'   : f.telephone,
+            'email'       : f.email,
+            'adresse'     : f.adresse,
+            'type_service': f.type_service,
+            'notes'       : f.notes,
         })
 
     # Matériels
@@ -1920,29 +1993,97 @@ def exporter_donnees():
     # Prestations (Evenements)
     data['prestations'] = []
     for e in Evenement.query.all():
+        fac_e = Facture.query.get(e.facture_id) if e.facture_id else None
         data['prestations'].append({
-            'titre'      : e.titre,
-            'date'       : e.date.strftime('%Y-%m-%d') if e.date else None,
-            'heure_debut': e.heure_debut,
-            'heure_fin'  : e.heure_fin,
-            'nom_client' : e.nom_client,
-            'lieu'       : e.lieu,
-            'service'    : e.service,
-            'section'    : e.section,
-            'statut'     : e.statut,
-            'notes'      : e.notes,
+            'titre'          : e.titre,
+            'date'           : e.date.strftime('%Y-%m-%d') if e.date else None,
+            'heure_debut'    : e.heure_debut,
+            'heure_fin'      : e.heure_fin,
+            'nom_client'     : e.nom_client,
+            'lieu'           : e.lieu,
+            'service'        : e.service,
+            'section'        : e.section,
+            'statut'         : e.statut,
+            'notes'          : e.notes,
+            'cree_par'       : e.cree_par,
+            'facture_numero' : fac_e.numero if fac_e else None,
         })
 
     # Dépenses prestations
     data['depenses'] = []
     for d in DepensePrestation.query.all():
+        evt_d  = Evenement.query.get(d.evenement_id)
+        tech_d = Technicien.query.get(d.technicien_id) if d.technicien_id else None
+        recu_d = RecuPaiement.query.get(d.recu_id) if d.recu_id else None
         data['depenses'].append({
-            'type_depense' : d.type_depense,
-            'description'  : d.description,
-            'beneficiaire' : d.beneficiaire,
-            'montant'      : d.montant,
-            'statut'       : d.statut,
-            'date_paiement': d.date_paiement.strftime('%Y-%m-%d') if d.date_paiement else None,
+            'evenement_titre': evt_d.titre if evt_d else None,
+            'type_depense'   : d.type_depense,
+            'description'    : d.description,
+            'beneficiaire'   : d.beneficiaire,
+            'technicien_nom' : tech_d.nom if tech_d else None,
+            'recu_numero'    : recu_d.numero if recu_d else None,
+            'montant'        : d.montant,
+            'statut'         : d.statut,
+            'date_paiement'  : d.date_paiement.strftime('%Y-%m-%d') if d.date_paiement else None,
+            'cree_par'       : d.cree_par,
+        })
+
+    # Reçus paiements
+    data['recus'] = []
+    for r in RecuPaiement.query.all():
+        tech_r = Technicien.query.get(r.technicien_id) if r.technicien_id else None
+        data['recus'].append({
+            'numero'         : r.numero,
+            'date'           : r.date.strftime('%Y-%m-%d') if r.date else None,
+            'beneficiaire'   : r.beneficiaire,
+            'technicien_nom' : tech_r.nom if tech_r else None,
+            'type_recu'      : r.type_recu,
+            'salaire_base'   : r.salaire_base,
+            'total_primes'   : r.total_primes,
+            'total_net'      : r.total_net,
+            'mois'           : r.mois,
+            'notes'          : r.notes,
+            'cree_par'       : r.cree_par,
+        })
+
+    # Assignations techniciens
+    data['assignations_tech'] = []
+    for at in EvenementTechnicien.query.all():
+        evt_at  = Evenement.query.get(at.evenement_id)
+        tech_at = Technicien.query.get(at.technicien_id)
+        if evt_at and tech_at:
+            data['assignations_tech'].append({
+                'evenement_titre' : evt_at.titre,
+                'technicien_nom'  : tech_at.nom,
+                'role'            : at.role,
+            })
+
+    # Assignations matériels
+    data['assignations_mat'] = []
+    for am in EvenementMateriel.query.all():
+        evt_am = Evenement.query.get(am.evenement_id)
+        mat_am = Materiel.query.get(am.materiel_id)
+        if evt_am and mat_am:
+            data['assignations_mat'].append({
+                'evenement_titre': evt_am.titre,
+                'materiel_nom'   : mat_am.nom,
+                'quantite'       : am.quantite,
+                'notes'          : am.notes or '',
+            })
+
+    # Archives prestations
+    data['archives'] = []
+    for a in PrestationArchivee.query.all():
+        evt_a = Evenement.query.get(a.evenement_id)
+        data['archives'].append({
+            'evenement_titre' : evt_a.titre if evt_a else None,
+            'date_archivage'  : a.date_archivage.strftime('%Y-%m-%d') if a.date_archivage else None,
+            'total_recettes'  : a.total_recettes,
+            'total_depenses'  : a.total_depenses,
+            'benefice_net'    : a.benefice_net,
+            'nb_depenses'     : a.nb_depenses,
+            'archive_par'     : a.archive_par,
+            'notes'           : a.notes,
         })
 
     # ── Envoyer le fichier JSON ──
@@ -2067,7 +2208,8 @@ def importer_donnees():
         if mode == 'fusionner' and Fournisseur.query.filter_by(nom=nom_f).first():
             continue
         db.session.add(Fournisseur(nom=nom_f, telephone=f.get('telephone',''),
-            email=f.get('email',''), adresse=f.get('adresse','')))
+            email=f.get('email',''), adresse=f.get('adresse',''),
+            type_service=f.get('type_service',''), notes=f.get('notes','')))
         nb_fourni += 1
     db.session.commit()
 
@@ -2082,7 +2224,8 @@ def importer_donnees():
         db.session.add(Materiel(nom=nom_m, categorie=m.get('categorie',''),
             marque=m.get('marque',''), modele=m.get('modele',''),
             quantite=m.get('quantite',1), provenance=m.get('provenance','KS Production'),
-            fournisseur_id=fou.id if fou else None))
+            cout_location=m.get('cout_location',0), statut=m.get('statut','Disponible'),
+            notes=m.get('notes',''), fournisseur_id=fou.id if fou else None))
         nb_mat += 1
     db.session.commit()
 
@@ -2170,6 +2313,7 @@ def importer_donnees():
             statut=e.get('statut','Confirme'), service=e.get('service',''),
             notes=e.get('notes',''), heure_debut=e.get('heure_debut',''),
             heure_fin=e.get('heure_fin',''), date=date_obj,
+            cree_par=e.get('cree_par',''),
             facture_id=fac.id if fac else None))
         nb_presta += 1
     db.session.commit()
@@ -2201,9 +2345,7 @@ def importer_donnees():
     for d in data.get('depenses', []):
         evt = Evenement.query.filter_by(titre=d.get('evenement_titre','')).first() if d.get('evenement_titre') else None
         if not evt:
-            evt = Evenement.query.first()
-        if not evt:
-            continue
+            continue  # Ne pas attacher au mauvais événement
         tech = Technicien.query.filter_by(nom=d.get('technicien_nom','')).first() if d.get('technicien_nom') else None
         recu = RecuPaiement.query.filter_by(numero=d.get('recu_numero','')).first() if d.get('recu_numero') else None
         date_paie = None
@@ -2217,7 +2359,8 @@ def importer_donnees():
             description=d.get('description',''), beneficiaire=d.get('beneficiaire',''),
             technicien_id=tech.id if tech else None,
             montant=d.get('montant',0), statut=d.get('statut','En attente'),
-            recu_id=recu.id if recu else None, date_paiement=date_paie))
+            recu_id=recu.id if recu else None, date_paiement=date_paie,
+            cree_par=d.get('cree_par','')))
         nb_depenses += 1
     db.session.commit()
 
@@ -2858,7 +3001,6 @@ def nouvel_evenement():
     lieu       = request.form.get('lieu', '').strip()
     notes      = request.form.get('notes', '').strip()
     statut     = request.form.get('statut', 'Confirmé')
-    facture_id = int(request.form.get('facture_id')) if request.form.get('facture_id') else None,
 
     if not titre or not date_str:
         flash('Le titre et la date sont obligatoires.', 'danger')
@@ -3200,7 +3342,7 @@ def api_techniciens_disponibles():
                     EvenementTechnicien.technicien_id == t.id,
                     Evenement.id != evt_id,
                 ).first() is not None
-            except:
+            except Exception:
                 pass
 
         # Rôle déjà assigné à cet événement
@@ -3504,6 +3646,15 @@ def fiche_prestation_pdf(evt_id):
         facture_liee=facture_liee, techniciens=techniciens,
         materiels=materiels, filename=filename)
 
+
+@app.route('/agenda/telecharger/<int:evt_id>')
+def telecharger_prestation_pdf(evt_id):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    data, filename = generer_prestation_pdf(evt_id)
+    return send_file(io.BytesIO(data), mimetype='application/pdf',
+                     as_attachment=True, download_name=filename)
+
 # ================================================================
 # RELANCES IMPAYÉS — à coller dans app.py avant if __name__
 # ================================================================
@@ -3738,6 +3889,15 @@ def relance_pdf(facture_id):
         facture=facture, params=params, client=client,
         jours_retard=jours_retard, filename=filename,
         today=date.today())
+
+
+@app.route('/relances/telecharger/<int:facture_id>')
+def telecharger_relance_pdf(facture_id):
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    data, filename = generer_relance_pdf(facture_id)
+    return send_file(io.BytesIO(data), mimetype='application/pdf',
+                     as_attachment=True, download_name=filename)
 
 
 @app.route('/relances/message/<int:facture_id>')

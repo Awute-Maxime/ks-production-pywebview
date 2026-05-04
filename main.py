@@ -7,7 +7,15 @@ import time
 import sys
 import os
 import secrets
+import logging
 import webview
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+    datefmt='%H:%M:%S',
+)
+logger = logging.getLogger('KS')
 
 def resource_path(relative_path):
     if hasattr(sys, '_MEIPASS'):
@@ -35,6 +43,7 @@ DESKTOP_TOKEN = secrets.token_hex(16)
 def auto_auth_desktop():
     token = request.args.get('_dt')
     if token and token == DESKTOP_TOKEN:
+        session['_ks_desktop'] = True  # marque cette session comme fenêtre serveur
         if 'username' not in session:
             from database import Utilisateur
             admin = Utilisateur.query.filter_by(role='Administrateur').first()
@@ -44,18 +53,20 @@ def auto_auth_desktop():
 
 @app.route('/api/close-window')
 def api_close_window():
+    if 'username' not in session and request.headers.get('X-KS-Desktop') != 'true':
+        return jsonify({'ok': False, 'error': 'Non connecte'}), 401
     def _close():
         time.sleep(0.15)
         try:
             # Fermer toutes les fenêtres sauf la fenêtre principale
             for win in webview.windows:
-                if win.title != 'KS Production':
+                if not win.title.startswith('KS Production — Serveur'):
                     try:
                         win.destroy()
                     except Exception as e:
-                        print(f"[CLOSE] destroy error: {e}")
+                        logger.warning("[CLOSE] destroy error: %s", e)
         except Exception as e:
-            print(f"[CLOSE] error: {e}")
+            logger.warning("[CLOSE] error: %s", e)
     threading.Thread(target=_close, daemon=True).start()
     return jsonify({'ok': True})
 
@@ -78,8 +89,10 @@ def open_save_dialog_via_queue(key, initialfile, ext, filetypes):
 
 @app.route('/api/open-window')
 def api_open_window():
+    if 'username' not in session and request.headers.get('X-KS-Desktop') != 'true':
+        return jsonify({'ok': False, 'error': 'Non connecte'}), 401
     url   = request.args.get('url', '/')
-    title = request.args.get('title', 'Aperçu')
+    title = request.args.get('title', 'Apercu')
     sep   = '&' if '?' in url else '?'
     open_apercu_window(f"{url}{sep}_dt={DESKTOP_TOKEN}", title)
     return jsonify({'ok': True})
@@ -94,7 +107,7 @@ def api_ouvrir_url():
             import webbrowser
             webbrowser.open(url)
         except Exception as e:
-            print(f"[URL] Erreur: {e}")
+            logger.error("[URL] Erreur: %s", e)
     return jsonify({'ok': True})
 
 @app.route('/api/partager-fiche-tarifs')
@@ -131,7 +144,7 @@ def api_partager_fiche_tarifs():
         chemin = os.path.join(bureau, filename)
         with open(chemin, 'wb') as f:
             f.write(pdf_bytes)
-        print(f"[TARIFS] PDF: {chemin}")
+        logger.info("[TARIFS] PDF: %s", chemin)
 
         params  = Parametres.query.first()
         nom_ent = params.nom_entreprise if params else 'KS Production'
@@ -151,7 +164,7 @@ def api_partager_fiche_tarifs():
 
     except Exception as e:
         import traceback
-        print(f"[TARIFS] Erreur: {e}")
+        logger.error("[TARIFS] Erreur: %s", e)
         traceback.print_exc()
         return jsonify({'ok': False, 'error': str(e)})
 
@@ -203,7 +216,7 @@ def api_partager():
                    + f"\nMerci pour votre confiance.\n{nom_ent}"
                    + (f"\n📞 {tel_ent}" if tel_ent else ''))
 
-            print(f"[PARTAGE] Prestation EVT-{evt.id:04d} → {canal}")
+            logger.info("[PARTAGE] Prestation EVT-%04d -> %s", evt.id, canal)
 
             with app.app_context():
                 pdf_bytes, filename = generer_prestation_pdf(doc_id_int)
@@ -211,7 +224,7 @@ def api_partager():
             chemin = os.path.join(bureau, filename)
             with open(chemin, 'wb') as f:
                 f.write(pdf_bytes)
-            print(f"[PARTAGE] PDF: {chemin}")
+            logger.info("[PARTAGE] PDF: %s", chemin)
 
             if canal == 'whatsapp':
                 tel_clean = tel.replace(' ', '').replace('-', '').replace('+', '')
@@ -265,7 +278,7 @@ def api_partager():
                    f"Montant TTC : {facture.montant_ttc:,.0f} FCFA\n\n"
                    f"Valable 30 jours.\nMerci pour votre confiance.\n{nom_ent}").replace(',', ' ')
 
-        print(f"[PARTAGE] {prefix} {facture.numero} → {canal}")
+        logger.info("[PARTAGE] %s %s -> %s", prefix, facture.numero, canal)
 
         # ── Générer le PDF ────────────────────────────────────────────
         if type_doc in ('facture', 'proforma'):
@@ -289,7 +302,7 @@ def api_partager():
         chemin = os.path.join(bureau, filename)
         with open(chemin, 'wb') as f:
             f.write(pdf_bytes)
-        print(f"[PARTAGE] PDF: {chemin}")
+        logger.info("[PARTAGE] PDF: %s", chemin)
 
         # ── Ouvrir WhatsApp ou Email ──────────────────────────────────
         if canal == 'whatsapp':
@@ -298,19 +311,19 @@ def api_partager():
                 tel_clean = '228' + tel_clean
             wa_url = (f"https://wa.me/{tel_clean}?text={quote(msg)}"
                       if tel_clean else f"https://wa.me/?text={quote(msg)}")
-            print(f"[PARTAGE] WhatsApp: {wa_url[:80]}...")
+            logger.info("[PARTAGE] WhatsApp: %s...", wa_url[:80])
             webbrowser.open(wa_url)
         else:
             sujet  = f"{prefix} {facture.numero} - {nom_ent}"
             mailto = f"mailto:?subject={quote(sujet)}&body={quote(msg)}"
-            print(f"[PARTAGE] Email: {mailto[:80]}...")
+            logger.info("[PARTAGE] Email: %s...", mailto[:80])
             webbrowser.open(mailto)
 
         return jsonify({'ok': True, 'chemin': chemin})
 
     except Exception as e:
         import traceback
-        print(f"[PARTAGE] Erreur: {e}")
+        logger.error("[PARTAGE] Erreur: %s", e)
         traceback.print_exc()
         return jsonify({'ok': False, 'error': str(e)})
 
@@ -371,12 +384,12 @@ def api_enregistrer_pdf_temp():
         with open(chemin, 'wb') as f:
             f.write(pdf_bytes)
 
-        print(f"[PARTAGE] PDF prêt: {chemin}")
+        logger.info("[PARTAGE] PDF pret: %s", chemin)
         return jsonify({'ok': True, 'chemin': chemin, 'filename': filename})
 
     except Exception as e:
         import traceback
-        print(f"[PARTAGE] Erreur: {e}")
+        logger.error("[PARTAGE] Erreur: %s", e)
         traceback.print_exc()
         return jsonify({'ok': False, 'chemin': '', 'error': str(e)})
 
@@ -410,7 +423,7 @@ def api_enregistrer_pdf():
                 apercu_url = f'/proformas/apercu/{doc_id_int}'
                 prefix     = 'Document'
 
-            print(f"[PDF] Génération pour {apercu_url}")
+            logger.info("[PDF] Generation pour %s", apercu_url)
 
             # Générer le PDF selon le type
             if type_doc in ('facture', 'proforma'):
@@ -421,7 +434,7 @@ def api_enregistrer_pdf():
                         sess['role']     = 'Administrateur'
                     resp = c.get(apercu_url)
                 html = resp.data.decode('utf-8')
-                print(f"[PDF] HTML: {len(html)} chars")
+                logger.info("[PDF] HTML: %d chars", len(html))
                 from weasyprint import HTML, CSS
                 extra_css = CSS(string='* { -webkit-print-color-adjust: exact !important; } .action-bar, .toolbar { display: none !important; } body { background: white !important; margin: 0; } .page-wrap { margin: 0 !important; max-width: 100% !important; } .facture { box-shadow: none !important; }')
                 pdf_bytes = HTML(string=html, base_url='http://127.0.0.1:5000').write_pdf(stylesheets=[extra_css])
@@ -437,13 +450,13 @@ def api_enregistrer_pdf():
                 with app.app_context():
                     pdf_bytes, filename = generer_prestation_pdf(doc_id_int)
 
-            print(f"[PDF] OK: {len(pdf_bytes)} bytes")
+            logger.info("[PDF] OK: %d bytes", len(pdf_bytes))
             if not pdf_bytes or len(pdf_bytes) < 200:
-                print("[PDF] PDF trop petit")
+                logger.warning("[PDF] PDF trop petit")
                 return
 
             # Boîte Enregistrer sous via queue main thread
-            print(f"[PDF] Ouverture dialog: {filename}")
+            logger.info("[PDF] Ouverture dialog: %s", filename)
             import uuid
             key = str(uuid.uuid4())
             chemin = open_save_dialog_via_queue(
@@ -452,19 +465,69 @@ def api_enregistrer_pdf():
             )
 
             if not chemin:
-                print("[PDF] Annulé")
+                logger.info("[PDF] Annule")
                 return
 
             with open(chemin, 'wb') as f:
                 f.write(pdf_bytes)
-            print(f"[PDF] ✅ Enregistré: {chemin}")
+            logger.info("[PDF] OK Enregistre: %s", chemin)
 
         except Exception as e:
-            print(f"[PDF] ❌ Erreur: {e}")
+            logger.error("[PDF] ERREUR: %s", e)
             traceback.print_exc()
 
     threading.Thread(target=_enregistrer, daemon=True).start()
     return jsonify({'ok': True})
+
+# ── Enregistrer Fiche Tarifs PDF via dialog natif ───────────────────
+@app.route('/api/enregistrer-fiche-tarifs')
+def api_enregistrer_fiche_tarifs():
+    if 'username' not in session:
+        return jsonify({'ok': False, 'error': 'Non connecte'})
+
+    def _enregistrer():
+        import traceback
+        try:
+            from weasyprint import HTML, CSS
+            from datetime import date
+
+            with app.test_client() as c:
+                with c.session_transaction() as sess:
+                    sess['username'] = 'admin'
+                    sess['role']     = 'Administrateur'
+                resp = c.get('/services/fiche-tarifs')
+            html = resp.data.decode('utf-8')
+
+            extra_css = CSS(string=(
+                '* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }'
+                '.action-bar, .d-print-none { display: none !important; }'
+                'body { background: white !important; margin: 0; }'
+                '.page-wrap { margin: 0 !important; padding: 0 !important; max-width: 100% !important; }'
+                '.fiche { box-shadow: none !important; border-radius: 0 !important; }'
+            ))
+            pdf_bytes = HTML(string=html, base_url='http://127.0.0.1:5000').write_pdf(stylesheets=[extra_css])
+
+            filename = f"FicheTarifs_{date.today().strftime('%d%m%Y')}.pdf"
+            import uuid
+            key = str(uuid.uuid4())
+            chemin = open_save_dialog_via_queue(
+                key, filename, '.pdf',
+                [('Fichiers PDF', '*.pdf'), ('Tous les fichiers', '*.*')]
+            )
+            if chemin:
+                with open(chemin, 'wb') as f:
+                    f.write(pdf_bytes)
+                logger.info("[PDF] Fiche Tarifs enregistree: %s", chemin)
+            else:
+                logger.info("[PDF] Fiche Tarifs - annule")
+        except Exception as e:
+            logger.error("[PDF] Fiche Tarifs ERREUR: %s", e)
+            traceback.print_exc()
+
+    import threading
+    threading.Thread(target=_enregistrer, daemon=True).start()
+    return jsonify({'ok': True})
+
 
 # ── Sauvegarde JSON via dialog natif ────────────────────────────────
 @app.route('/api/sauvegarder-json')
@@ -676,12 +739,17 @@ def api_sauvegarder_json():
         if chemin:
             with open(chemin, 'w', encoding='utf-8') as f:
                 f.write(contenu)
-            print(f"[BACKUP] ✅ Enregistré: {chemin}")
+            logger.info("[BACKUP] OK Enregistre: %s", chemin)
         else:
-            print("[BACKUP] Annulé")
+            logger.info("[BACKUP] Annule")
     threading.Thread(target=_do_backup, daemon=True).start()
     return jsonify({'ok': True})
 
+
+# ── API PyWebView exposée uniquement dans la fenêtre Serveur ─────────
+class _KsServeurApi:
+    def ping_serveur(self):
+        return True
 
 # ── Lancement principal ──────────────────────────────────────────────
 def get_ecran_principal():
@@ -726,13 +794,13 @@ if __name__ == '__main__':
         lw, lh = 460, 640
         lx = rect.left + (sw - lw) // 2
         ly = rect.top  + (sh - lh) // 2
-        print(f"[LOGIN] Écran {sw}×{sh} → fenêtre à ({lx}, {ly})")
+        logger.info("[LOGIN] Ecran %dx%d -> fenetre a (%d, %d)", sw, sh, lx, ly)
     except Exception:
         lx, ly, lw, lh = 730, 220, 460, 640
 
     window = webview.create_window(
-        'KS Production — Connexion',
-        f'http://127.0.0.1:5000/login',
+        'KS Production — Serveur',
+        f'http://127.0.0.1:5000/login?_dt={DESKTOP_TOKEN}',
         width=lw, height=lh,
         x=lx, y=ly,
         resizable=True,
@@ -744,11 +812,66 @@ if __name__ == '__main__':
     def on_loaded():
         import time
         time.sleep(0.3)
+        # Injecter le header X-KS-Desktop dans toutes les requêtes fetch de cette fenêtre
+        try:
+            window.evaluate_js(
+                # Injecter X-KS-Desktop dans tous les fetch
+                "(function(){"
+                "var _orig=window.fetch;"
+                "window.fetch=function(url,opts){"
+                "opts=opts||{};opts.headers=opts.headers||{};"
+                "opts.headers['X-KS-Desktop']='true';"
+                "return _orig.call(this,url,opts);};"
+                "})();"
+                # Corriger ouvrirApercu pour utiliser la modale au lieu d'une fenêtre native
+                "if(typeof ksOuvrirModal==='function'){"
+                "window.ouvrirApercu=function(url,titre){"
+                "var u=url.startsWith('/')?url:'/'+url;"
+                "ksOuvrirModal(u,titre);};"
+                "window.ouvrirFicheTarifs=function(){"
+                "ksOuvrirModal('/services/fiche-tarifs','Fiche Tarifs PDF');};"
+                "window.ouvrirFichePDF=function(){"
+                "if(!window.evtIdCourant)return;"
+                "ksOuvrirModal('/agenda/fiche-pdf/'+window.evtIdCourant,'Fiche Prestation');};"
+                "window.ouvrirApercuFacture=function(id){"
+                "ksOuvrirModal('/factures/apercu/'+id,'Aperçu Facture');};"
+                "}"
+                # Intercepter ksDeclencharTelechargement (appelé depuis les iframes aperçu)
+                "window.ksDeclencharTelechargement=function(url){"
+                "if(url.includes('telecharger-tarifs')){"
+                "fetch('/api/enregistrer-fiche-tarifs').catch(function(){});return;}"
+                "var m,t,id;"
+                "if(m=url.match(/\\/factures\\/telecharger\\/(\\d+)/)){t='facture';id=m[1];}"
+                "else if(m=url.match(/\\/proformas\\/telecharger\\/(\\d+)/)){t='proforma';id=m[1];}"
+                "else if(m=url.match(/\\/relances\\/telecharger\\/(\\d+)/)){t='relance';id=m[1];}"
+                "else if(m=url.match(/\\/agenda\\/telecharger\\/(\\d+)/)){t='prestation';id=m[1];}"
+                "if(t&&id){fetch('/api/enregistrer-pdf?type='+t+'&id='+id).catch(function(){});}"
+                "};"
+                # Intercepter les clics sur les liens télécharger directs (<a href="/xxx/telecharger/id">)
+                "document.addEventListener('click',function(e){"
+                "var a=e.target.closest('a[href*=\"/telecharger\"]');"
+                "if(!a)return;"
+                "e.preventDefault();"
+                "var url=a.getAttribute('href'),m,t,id;"
+                "if(url.includes('telecharger-tarifs')){"
+                "fetch('/api/enregistrer-fiche-tarifs').catch(function(){});return;}"
+                "if(m=url.match(/\\/factures\\/telecharger\\/(\\d+)/)){t='facture';id=m[1];}"
+                "else if(m=url.match(/\\/proformas\\/telecharger\\/(\\d+)/)){t='proforma';id=m[1];}"
+                "else if(m=url.match(/\\/relances\\/telecharger\\/(\\d+)/)){t='relance';id=m[1];}"
+                "else if(m=url.match(/\\/agenda\\/telecharger\\/(\\d+)/)){t='prestation';id=m[1];}"
+                "if(t&&id){fetch('/api/enregistrer-pdf?type='+t+'&id='+id).catch(function(){});}"
+                "});"
+                # Intercepter ksDownloadTarifs (fiche tarifs via blob → non supporté PyWebView)
+                "window.ksDownloadTarifs=function(){"
+                "fetch('/api/enregistrer-fiche-tarifs').catch(function(){});};"
+            )
+        except Exception:
+            pass
         url = window.get_current_url() or ''
         if '/dashboard' in url or ('/login' not in url and url):
             if not state['connecte']:
                 state['connecte'] = True
-                window.set_title('KS Production')
+                window.set_title('KS Production — Serveur')
                 try:
                     w, h = get_ecran_principal()
                     window.resize(w, h)
@@ -771,11 +894,22 @@ if __name__ == '__main__':
                 if kind == 'window':
                     _, title, url = item
                     try:
-                        webview.create_window(title, url, width=1050, height=780,
-                                              resizable=True, confirm_close=False)
-                        print(f"[WINDOW] ✅ {title}")
+                        new_win = webview.create_window(title, url, width=1050, height=780,
+                                                        resizable=True, confirm_close=False)
+                        def _inject(w=new_win):
+                            try:
+                                w.evaluate_js(
+                                    "(function(){var _o=window.fetch;window.fetch=function(u,opts)"
+                                    "{opts=opts||{};opts.headers=opts.headers||{};"
+                                    "opts.headers['X-KS-Desktop']='true';"
+                                    "return _o.call(this,u,opts);};})();"
+                                )
+                            except Exception:
+                                pass
+                        new_win.events.loaded += _inject
+                        logger.info("[WINDOW] OK %s", title)
                     except Exception as ex:
-                        print(f"[WINDOW] ❌ {ex}")
+                        logger.error("[WINDOW] ERREUR %s", ex)
                 elif kind == 'dialog':
                     _, key, initialfile, ext, filetypes, event = item
                     try:
@@ -790,13 +924,19 @@ if __name__ == '__main__':
                         root.destroy()
                         _dialog_result[key] = chemin or None
                     except Exception as ex:
-                        print(f"[DIALOG] ❌ {ex}")
+                        logger.error("[DIALOG] ERREUR %s", ex)
                         _dialog_result[key] = None
                     finally:
                         event.set()
             except _queue.Empty:
                 pass
             except Exception as e:
-                print(f"[QUEUE] ❌ {e}")
+                logger.error("[QUEUE] ERREUR %s", e)
 
-    webview.start(func=process_window_queue, debug=False)
+    import tempfile, shutil
+    _server_storage = os.path.join(tempfile.gettempdir(), 'ks_production_server')
+    if os.path.exists(_server_storage):
+        shutil.rmtree(_server_storage, ignore_errors=True)
+    os.makedirs(_server_storage, exist_ok=True)
+    webview.start(func=process_window_queue, debug=False,
+                  storage_path=_server_storage, private_mode=True)

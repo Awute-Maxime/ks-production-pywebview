@@ -517,6 +517,10 @@
                        class="btn btn-sm" style="background:#e94560;color:#fff;border:none;font-size:.78rem;border-radius:7px;">
                         <i class="bi bi-file-earmark-pdf me-1"></i>Fiche PDF
                     </button>
+                    <a id="btnTelechargerPDF" href="#"
+                       class="btn btn-sm" style="background:#6c5ce7;color:#fff;border:none;font-size:.78rem;border-radius:7px;text-decoration:none;">
+                        <i class="bi bi-download me-1"></i>Télécharger
+                    </a>
                     <button type="button" class="btn-close" style="filter:invert(1);" data-bs-dismiss="modal"></button>
                 </div>
             </div>
@@ -772,9 +776,7 @@ let evtDateCourante = '';
 // ── Switch onglets modal ────────────────────────────────────────
 function ouvrirFichePDF() {
     if (!evtIdCourant) return;
-    const url = '/agenda/fiche-pdf/' + evtIdCourant;
-    fetch('/api/open-window?url=' + encodeURIComponent(url) + '&title=Fiche%20PDF')
-        .catch(() => {});
+    ksOuvrirModal('/agenda/fiche-pdf/' + evtIdCourant, 'Fiche Prestation');
 }
 
 function switchTab(nom, btn) {
@@ -817,6 +819,7 @@ function voirDetail(id, titre, date, hd, hf, client, service, section, lieu, sta
     }
     document.getElementById('formSuppDetail').action     = `/agenda/supprimer/${id}`;
     document.getElementById('btnFichePDF').href = `/agenda/fiche-pdf/${id}`;
+    document.getElementById('btnTelechargerPDF').href = `/agenda/telecharger/${id}`;
 
     // Convertir dd/mm/yyyy → yyyy-mm-dd
     const parts = date.split('/');
@@ -1033,9 +1036,61 @@ function sauvegarderMateriel() {
 
 
 // ── Dépenses de prestation ────────────────────────────────────
+var _ksDesktop = {{ _ks_is_desktop | tojson }};
+function _ksCheckDesktop(cb) { cb(_ksDesktop); }
+function ksOuvrirModal(url, titre) {
+    document.getElementById('ksModalTitre').textContent = titre;
+    document.getElementById('ksModalFrame').src = url;
+    document.getElementById('ksModalOverlay').style.display = 'flex';
+}
+function ksFermerModal() { document.getElementById('ksModalOverlay').style.display='none'; document.getElementById('ksModalFrame').src=''; }
+function ksDeclencharTelechargement(url) {
+    var f=document.createElement('iframe'); f.style.cssText='display:none;width:0;height:0;border:none;'; f.src=url; document.body.appendChild(f); setTimeout(function(){if(f.parentNode)f.parentNode.removeChild(f);},15000);
+}
+function ksMiniModal() { var b=document.getElementById('ksModalBox'); b.style.width='480px'; b.style.height='340px'; }
+function ksGrandirModal() { var b=document.getElementById('ksModalBox'); b.style.width='98vw'; b.style.height='96vh'; b.style.margin='0'; b.style.position='fixed'; b.style.left='1vw'; b.style.top='2vh'; }
+function ksInitModal() {
+    var box=document.getElementById('ksModalBox'), hdr=document.getElementById('ksModalHeader');
+    if(!box||!hdr) return;
+    var drag=false,ox=0,oy=0;
+    hdr.addEventListener('mousedown',function(e){
+        drag=true; var r=box.getBoundingClientRect(); ox=e.clientX-r.left; oy=e.clientY-r.top;
+        box.style.margin='0'; box.style.position='fixed'; box.style.left=r.left+'px'; box.style.top=r.top+'px'; e.preventDefault();
+    });
+    document.addEventListener('mousemove',function(e){ if(!drag)return; box.style.left=(e.clientX-ox)+'px'; box.style.top=(e.clientY-oy)+'px'; });
+    document.addEventListener('mouseup',function(){ drag=false; });
+    ['n','ne','e','se','s','sw','w','nw'].forEach(function(dir){
+        var h=document.createElement('div'),S=8;
+        h.style.position='absolute'; h.style.zIndex='20';
+        if(dir==='n')  Object.assign(h.style,{top:0,left:S+'px',right:S+'px',height:S+'px',cursor:'n-resize'});
+        if(dir==='s')  Object.assign(h.style,{bottom:0,left:S+'px',right:S+'px',height:S+'px',cursor:'s-resize'});
+        if(dir==='e')  Object.assign(h.style,{right:0,top:S+'px',bottom:S+'px',width:S+'px',cursor:'e-resize'});
+        if(dir==='w')  Object.assign(h.style,{left:0,top:S+'px',bottom:S+'px',width:S+'px',cursor:'w-resize'});
+        if(dir==='ne') Object.assign(h.style,{top:0,right:0,width:S+'px',height:S+'px',cursor:'ne-resize'});
+        if(dir==='nw') Object.assign(h.style,{top:0,left:0,width:S+'px',height:S+'px',cursor:'nw-resize'});
+        if(dir==='se') Object.assign(h.style,{bottom:0,right:0,width:S+'px',height:S+'px',cursor:'se-resize'});
+        if(dir==='sw') Object.assign(h.style,{bottom:0,left:0,width:S+'px',height:S+'px',cursor:'sw-resize'});
+        h.addEventListener('mousedown',function(e){
+            e.preventDefault(); e.stopPropagation();
+            var sX=e.clientX,sY=e.clientY,r=box.getBoundingClientRect(),sW=r.width,sH=r.height,sL=r.left,sT=r.top;
+            box.style.margin='0'; box.style.position='fixed'; box.style.left=sL+'px'; box.style.top=sT+'px';
+            function mv(e){
+                var dx=e.clientX-sX,dy=e.clientY-sY,nW=sW,nH=sH,nL=sL,nT=sT;
+                if(dir.includes('e'))nW=Math.max(350,sW+dx); if(dir.includes('s'))nH=Math.max(250,sH+dy);
+                if(dir.includes('w')){nW=Math.max(350,sW-dx);nL=sL+sW-nW;} if(dir.includes('n')){nH=Math.max(250,sH-dy);nT=sT+sH-nH;}
+                box.style.width=nW+'px'; box.style.height=nH+'px'; box.style.left=nL+'px'; box.style.top=nT+'px';
+            }
+            function up(){document.removeEventListener('mousemove',mv);document.removeEventListener('mouseup',up);}
+            document.addEventListener('mousemove',mv); document.addEventListener('mouseup',up);
+        });
+        box.appendChild(h);
+    });
+    box.style.position='relative';
+}
+document.addEventListener('DOMContentLoaded', ksInitModal);
+
 function ouvrirApercuFacture(facId) {
-    fetch('/api/open-window?url=' + encodeURIComponent('/factures/apercu/' + facId) + '&title=Aperçu+Facture')
-        .catch(() => {});
+    ksOuvrirModal('/factures/apercu/' + facId, 'Aperçu Facture');
 }
 
 function chargerDepenses(evtId) {
@@ -1248,9 +1303,7 @@ function enregistrerDepense() {
                 chargerDepenses(evtIdCourant);
                 // Reçu uniquement pour Prime/Rémunération payées
                 if (d.statut === 'Payé' && d.recu_id && d.necessite_recu) {
-                    const recuUrl = '/paie/recu/' + d.recu_id;
-                    fetch('/api/open-window?url=' + encodeURIComponent(recuUrl) + '&title=Reçu')
-                        .catch(() => {});
+                    ksOuvrirModal('/paie/recu/' + d.recu_id, 'Reçu');
                 }
             } else { flash.innerHTML = '<div style="color:#e94560;font-size:.78rem;">Erreur.</div>'; }
         });
@@ -1611,9 +1664,7 @@ function creerRecuRecap() {
             btn.innerHTML = '<i class="bi bi-file-earmark-check me-1"></i>Générer le reçu';
             if (d.ok) {
                 // Ouvrir le reçu
-                fetch('/api/open-window?url=' + encodeURIComponent('/paie/recu/' + d.recu_id) +
-                      '&title=' + encodeURIComponent('Reçu — ' + d.beneficiaire))
-                    .catch(() => {});
+                ksOuvrirModal('/paie/recu/' + d.recu_id, 'Reçu — ' + d.beneficiaire);
                 chargerDepenses(evtIdCourant);
             } else {
                 alert(d.error || 'Erreur lors de la création du reçu');
@@ -1621,5 +1672,18 @@ function creerRecuRecap() {
         });
 }
 </script>
+<div id="ksModalOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9990;align-items:center;justify-content:center;">
+    <div id="ksModalBox" style="background:#fff;border-radius:10px;width:820px;max-width:96vw;height:88vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,.45);">
+        <div style="background:#1a1a2e;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <span style="color:#e94560;font-weight:700;font-size:.85rem;"><i class="bi bi-calendar3"></i> <span id="ksModalTitre">Aperçu</span></span>
+            <div style="display:flex;gap:6px;">
+                <button onclick="ksMiniModal()" style="background:#f59e0b;border:none;color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:.75rem;font-weight:600;">▼ Mini</button>
+                <button onclick="ksGrandirModal()" style="background:#10b981;border:none;color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:.75rem;font-weight:600;">▲ Agrandir</button>
+                <button onclick="ksFermerModal()" style="background:#e94560;border:none;color:#fff;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:.75rem;font-weight:600;">✕ Fermer</button>
+            </div>
+        </div>
+        <iframe id="ksModalFrame" src="" style="flex:1;border:none;background:#fff;"></iframe>
+    </div>
+</div>
 </body>
 </html>
