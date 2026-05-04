@@ -7,7 +7,6 @@ DefaultDirName={autopf}\KS Production\Serveur
 DefaultGroupName=KS Production
 OutputDir=installer_output
 OutputBaseFilename=KS_Server_Setup
-SetupIconFile=
 Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -20,7 +19,7 @@ Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Icônes supplémentaires:"
-Name: "firewallrule"; Description: "Ouvrir le port 5000 dans le pare-feu Windows (requis pour le réseau LAN)"; GroupDescription: "Réseau:"; Flags: checked
+Name: "firewallrule"; Description: "Ouvrir le port 5000 dans le pare-feu Windows (requis pour le réseau LAN)"; GroupDescription: "Réseau:"
 
 [Files]
 Source: "dist\KS_Production_Server\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

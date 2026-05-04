@@ -7,7 +7,6 @@ DefaultDirName={autopf}\KS Production\Client
 DefaultGroupName=KS Production
 OutputDir=installer_output
 OutputBaseFilename=KS_Client_Setup
-SetupIconFile=
 Compression=lzma2/ultra64
 SolidCompression=yes
 PrivilegesRequired=admin
@@ -19,7 +18,7 @@ UninstallDisplayIcon={app}\KS_Client.exe
 Name: "french"; MessagesFile: "compiler:Languages\French.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Icônes supplémentaires:"; Flags: checked
+Name: "desktopicon"; Description: "Créer un raccourci sur le Bureau"; GroupDescription: "Icônes supplémentaires:"
 
 [Files]
 Source: "dist\KS_Production_Client\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
