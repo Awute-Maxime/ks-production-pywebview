@@ -34,6 +34,7 @@ exe = EXE(
     a.datas,
     [],
     name='KS_Server',
+    icon='static\\icons\\ks_production.ico',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
