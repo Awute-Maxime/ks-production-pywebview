@@ -166,7 +166,7 @@ def api_partager_fiche_tarifs():
         import traceback
         logger.error("[TARIFS] Erreur: %s", e)
         traceback.print_exc()
-        return jsonify({'ok': False, 'error': str(e)})
+        return jsonify({'ok': False, 'error': 'Une erreur est survenue. Consultez les logs.'})
 
 @app.route('/api/partager')
 def api_partager():
@@ -325,7 +325,7 @@ def api_partager():
         import traceback
         logger.error("[PARTAGE] Erreur: %s", e)
         traceback.print_exc()
-        return jsonify({'ok': False, 'error': str(e)})
+        return jsonify({'ok': False, 'error': 'Une erreur est survenue. Consultez les logs.'})
 
 @app.route('/api/enregistrer-pdf-temp')
 def api_enregistrer_pdf_temp():
@@ -726,7 +726,7 @@ def api_sauvegarder_json():
         nom_fichier = f"KS_Backup_{dt.now().strftime('%d%m%Y_%H%M')}.json"
 
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e)})
+        return jsonify({'ok': False, 'error': 'Une erreur est survenue. Consultez les logs.'})
 
     # Ouvrir dialog via queue main thread
     import uuid

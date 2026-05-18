@@ -19,7 +19,20 @@ app = Flask(__name__,
     template_folder=os.path.join(_base_dir(), 'templates'),
     static_folder  =os.path.join(_base_dir(), 'static'),
 )
-app.secret_key = os.environ.get('SECRET_KEY', 'ks_production_2026')
+def _get_or_create_secret_key():
+    import secrets as _sec
+    key_file = os.path.join(_base_dir(), 'data', 'secret.key')
+    os.makedirs(os.path.dirname(key_file), exist_ok=True)
+    if os.path.exists(key_file):
+        k = open(key_file).read().strip()
+        if k:
+            return k
+    k = _sec.token_hex(32)
+    with open(key_file, 'w') as f:
+        f.write(k)
+    return k
+
+app.secret_key = os.environ.get('SECRET_KEY') or _get_or_create_secret_key()
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(hours=8)
 
 # ── Chemin absolu (robuste quel que soit le CWD) ──────────────────
@@ -47,16 +60,18 @@ def initialiser_base():
     # ── Migration SQLite : ajouter les nouvelles colonnes si absentes ──
     _migrations = [
         # (table, colonne, définition SQL)
-        ('technicien',         'role',           "TEXT"),
-        ('technicien',         'statut_emploi',  "TEXT DEFAULT 'Temporaire'"),
-        ('technicien',         'salaire_base',   "REAL DEFAULT 0"),
-        ('parametres',         'cachet_filename',"TEXT DEFAULT ''"),
-        ('recu_paiement',      'id',             None),   # table entière → db.create_all() s'en charge
-        ('depense_prestation', 'id',             None),   # idem
-        ('prestation_archivee','id',             None),   # idem
+        ('technicien',         'role',                "TEXT"),
+        ('technicien',         'statut_emploi',       "TEXT DEFAULT 'Temporaire'"),
+        ('technicien',         'salaire_base',        "REAL DEFAULT 0"),
+        ('parametres',         'cachet_filename',     "TEXT DEFAULT ''"),
+        ('utilisateurs',       'must_change_password',"INTEGER DEFAULT 0"),
+        ('recu_paiement',      'id',                  None),   # table entière → db.create_all() s'en charge
+        ('depense_prestation', 'id',                  None),   # idem
+        ('prestation_archivee','id',                  None),   # idem
     ]
     try:
         from sqlalchemy import text
+        from sqlalchemy.exc import OperationalError as _OpsError
         with db.engine.connect() as conn:
             for table, colonne, definition in _migrations:
                 if definition is None:
@@ -65,16 +80,16 @@ def initialiser_base():
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {colonne} {definition}"))
                     conn.commit()
                     print(f"[MIGRATION] {table}.{colonne} ajoutée")
-                except Exception:
-                    pass  # Colonne déjà existante → on ignore
+                except _OpsError:
+                    conn.rollback()  # Colonne déjà existante → on ignore
     except Exception as e:
         print(f"[MIGRATION] Erreur: {e}")
 
     if Utilisateur.query.count() == 0:
         utilisateurs = [
-            Utilisateur(username='admin',    password=generate_password_hash('admin2025'),  role='Administrateur', nom_complet='Admin KS Production'),
-            Utilisateur(username='caissier', password=generate_password_hash('caisse2025'), role='Caissier',        nom_complet='Caissier KS Production'),
-            Utilisateur(username='lecture',  password=generate_password_hash('view2025'),   role='Lecture seule',   nom_complet='Lecture KS Production'),
+            Utilisateur(username='admin',    password=generate_password_hash('admin2025'),  role='Administrateur', nom_complet='Admin KS Production',    must_change_password=True),
+            Utilisateur(username='caissier', password=generate_password_hash('caisse2025'), role='Caissier',        nom_complet='Caissier KS Production', must_change_password=True),
+            Utilisateur(username='lecture',  password=generate_password_hash('view2025'),   role='Lecture seule',   nom_complet='Lecture KS Production',  must_change_password=True),
         ]
         for u in utilisateurs:
             db.session.add(u)
@@ -149,6 +164,17 @@ def accueil():
     return redirect(url_for('login'))
 
 
+@app.before_request
+def _force_password_change():
+    if not session.get('must_change_password'):
+        return
+    exempted = {'login', 'logout', 'profil', 'changer_mdp', 'static', 'favicon'}
+    if request.endpoint in exempted:
+        return
+    flash('Vous devez changer votre mot de passe avant de continuer.', 'warning')
+    return redirect(url_for('profil'))
+
+
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     erreur = None
@@ -159,6 +185,8 @@ def login():
         if user and check_password_hash(user.password, password):
             session['username'] = user.username
             session['role']     = user.role
+            if user.must_change_password:
+                session['must_change_password'] = True
             return redirect(url_for('dashboard'))
         else:
             erreur = "Nom d'utilisateur ou mot de passe incorrect."
@@ -579,7 +607,8 @@ def api_nouvelle_facture():
         return jsonify({'ok': True, 'numero': numero})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'ok': False, 'error': str(e)})
+        print(f"[ERREUR API] {e}")
+        return jsonify({'ok': False, 'error': 'Une erreur est survenue. Veuillez réessayer.'})
 
 
 @app.route('/api/proformas/nouvelle', methods=['POST'])
@@ -638,7 +667,8 @@ def api_nouvelle_proforma():
         return jsonify({'ok': True, 'numero': numero})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'ok': False, 'error': str(e)})
+        print(f"[ERREUR API] {e}")
+        return jsonify({'ok': False, 'error': 'Une erreur est survenue. Veuillez réessayer.'})
 
 
 @app.route('/factures/apercu/<int:id>')
@@ -1099,7 +1129,8 @@ def api_nouvelle_operation():
         return jsonify({'ok': True, 'numero': numero})
     except Exception as e:
         db.session.rollback()
-        return jsonify({'ok': False, 'error': str(e)})
+        print(f"[ERREUR API] {e}")
+        return jsonify({'ok': False, 'error': 'Une erreur est survenue. Veuillez réessayer.'})
 
 
 @app.route('/operations/nouvelle', methods=['GET', 'POST'])
@@ -2690,8 +2721,9 @@ def convertir_proforma(id):
         montant_paye = proforma.montant_ttc
         reste_du     = 0
     elif etat == 'Partiel':
-        montant_paye = 0
-        reste_du     = proforma.montant_ttc
+        montant_avance = float(request.form.get('montant_avance', 0) or 0)
+        montant_paye   = montant_avance
+        reste_du       = proforma.montant_ttc - montant_avance
     else:
         montant_paye = 0
         reste_du     = proforma.montant_ttc
@@ -2884,8 +2916,10 @@ def changer_mdp():
         return redirect(url_for('profil'))
 
     # Mettre à jour
-    utilisateur.password = generate_password_hash(nouveau_mdp)
+    utilisateur.password            = generate_password_hash(nouveau_mdp)
+    utilisateur.must_change_password = False
     db.session.commit()
+    session.pop('must_change_password', None)
 
     flash('✅ Mot de passe changé avec succès !', 'success')
     return redirect(url_for('profil'))

@@ -10,7 +10,8 @@ class Utilisateur(db.Model):
     password    = db.Column(db.String(100), nullable=False)
     role        = db.Column(db.String(50), nullable=False)
     nom_complet = db.Column(db.String(100))
-    statut      = db.Column(db.String(20), default='Actif')
+    statut               = db.Column(db.String(20), default='Actif')
+    must_change_password = db.Column(db.Boolean, default=False)
 
 class Client(db.Model):
     __tablename__ = 'clients'
