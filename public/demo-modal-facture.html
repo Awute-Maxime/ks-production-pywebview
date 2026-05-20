@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Modal Nouvelle Facture — KS Production</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:#f0f2f8;min-height:100vh;display:flex;flex-direction:column}
+
+  /* ── Simuler l'app en fond ── */
+  .app-bg{display:flex;height:100vh;overflow:hidden}
+  .sidebar{width:56px;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;padding:14px 0;gap:10px;flex-shrink:0}
+  .s-logo{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#e94560,#c0392b);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:.75rem;color:#fff;margin-bottom:8px}
+  .s-item{width:34px;height:34px;border-radius:10px;background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center;font-size:.95rem;cursor:pointer}
+  .s-item.active{background:#e94560}
+  .app-main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+  .topbar-app{height:52px;background:#fff;border-bottom:1px solid rgba(0,0,0,.07);display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0}
+  .t-title{font-weight:800;font-size:.9rem;color:#1a1a2e;flex:1}
+  .t-btn{padding:6px 14px;border-radius:9px;border:none;background:linear-gradient(135deg,#e94560,#c0392b);color:#fff;font-size:.75rem;font-weight:700;cursor:pointer}
+  .app-content{flex:1;padding:18px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;overflow:hidden;filter:brightness(.97)}
+  .dummy-card{background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,.05)}
+
+  /* ── Overlay + Modal ── */
+  .overlay{position:fixed;inset:0;background:rgba(15,15,30,.6);backdrop-filter:blur(5px);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+
+  .modal{background:#fff;border-radius:20px;width:100%;max-width:860px;max-height:calc(100vh - 32px);display:flex;flex-direction:column;box-shadow:0 32px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.08);overflow:hidden}
+
+  /* Modal header */
+  .modal-header{display:flex;align-items:center;gap:12px;padding:16px 22px;border-bottom:1px solid #f0f0f0;flex-shrink:0;background:#fff}
+  .mh-icon{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#e9456018,#e9456008);display:flex;align-items:center;justify-content:center;font-size:1.1rem;border:1px solid #e9456020;flex-shrink:0}
+  .mh-info{flex:1}
+  .mh-title{font-weight:800;font-size:.95rem;color:#1a1a2e}
+  .mh-sub{font-size:.7rem;color:#bbb;margin-top:1px;font-family:monospace}
+  .mh-actions{display:flex;gap:7px;align-items:center}
+  .btn-ghost{padding:6px 13px;border-radius:9px;border:1.5px solid #ebebeb;background:#fff;font-size:.75rem;font-weight:600;color:#666;cursor:pointer;transition:.15s}
+  .btn-ghost:hover{background:#f5f5f5}
+  .btn-red{padding:6px 16px;border-radius:9px;border:none;background:linear-gradient(135deg,#e94560,#c0392b);color:#fff;font-size:.75rem;font-weight:700;cursor:pointer;box-shadow:0 3px 10px rgba(233,69,96,.3);display:flex;align-items:center;gap:6px}
+  .btn-close{width:30px;height:30px;border-radius:8px;background:#f5f5f5;border:none;cursor:pointer;color:#999;font-size:.9rem;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .btn-close:hover{background:#ebebeb;color:#555}
+
+  /* Modal body : 2 colonnes */
+  .modal-body{display:grid;grid-template-columns:1fr 260px;flex:1;overflow:hidden}
+
+  /* Colonne gauche scrollable */
+  .modal-left{overflow-y:auto;padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+  .modal-left::-webkit-scrollbar{width:4px}
+  .modal-left::-webkit-scrollbar-track{background:transparent}
+  .modal-left::-webkit-scrollbar-thumb{background:#e0e0e0;border-radius:4px}
+
+  /* Sections internes */
+  .section-block{display:flex;flex-direction:column;gap:10px}
+  .section-label{font-size:.63rem;font-weight:800;color:#ccc;text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px}
+  .section-label::after{content:'';flex:1;height:1px;background:#f0f0f0}
+
+  /* Champs */
+  .fields{display:grid;gap:10px}
+  .fields.c2{grid-template-columns:1fr 1fr}
+  .fields.c3{grid-template-columns:1fr 1fr 1fr}
+  .field{display:flex;flex-direction:column;gap:4px}
+  .field.s2{grid-column:span 2}
+  .field.s3{grid-column:1/-1}
+  label.fl{font-size:.62rem;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.07em}
+  .req::after{content:' *';color:#e94560}
+  input,select,textarea{border:1.5px solid #ebebeb;border-radius:9px;padding:8px 11px;font-size:.81rem;color:#222;background:#fafafa;outline:none;font-family:inherit;transition:.15s;width:100%}
+  input:focus,select:focus,textarea:focus{border-color:#e94560;background:#fff;box-shadow:0 0 0 3px rgba(233,69,96,.07)}
+  input[readonly]{background:#f8f8f8;color:#999;cursor:default;border-style:dashed}
+
+  /* Section buttons */
+  .sect-row{display:flex;gap:7px}
+  .sect-btn{flex:1;padding:8px 6px;border-radius:9px;border:1.5px solid #ebebeb;background:#fafafa;cursor:pointer;text-align:center;font-size:.72rem;font-weight:700;color:#aaa;transition:.15s;display:flex;flex-direction:column;align-items:center;gap:2px}
+  .sect-btn em{font-style:normal;font-size:1rem}
+  .sect-btn.on-sono{border-color:#e94560;background:#fef2f2;color:#e94560}
+  .sect-btn.on-studio{border-color:#6c5ce7;background:#f5f3ff;color:#6c5ce7}
+  .sect-btn.on-loc{border-color:#00b894;background:#f0fdf8;color:#00b894}
+  .sect-btn.on-admin{border-color:#0984e3;background:#eff6ff;color:#0984e3}
+
+  /* Suggestions */
+  .chips{display:flex;flex-wrap:wrap;gap:5px}
+  .chip{padding:4px 10px;border-radius:16px;border:1px solid #ebebeb;background:#f9f9f9;font-size:.7rem;font-weight:600;color:#777;cursor:pointer;transition:.15s}
+  .chip:hover{border-color:#e94560;color:#e94560;background:#fef2f2}
+
+  /* Table services */
+  .srv-table{width:100%;border-collapse:collapse;font-size:.78rem}
+  .srv-table thead tr{background:#f8f8f8;border-radius:8px}
+  .srv-table th{padding:7px 8px;text-align:left;font-size:.6rem;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid #f0f0f0}
+  .srv-table th.r{text-align:right}
+  .srv-table td{padding:5px 5px;border-bottom:1px solid #f9f9f9;vertical-align:middle}
+  .srv-table td input{padding:6px 8px;border-radius:7px;border:1.5px solid transparent;background:transparent;transition:.15s}
+  .srv-table td input:focus{background:#fff;border-color:#e94560}
+  .srv-table td.tot{text-align:right;font-weight:700;color:#1a1a2e;padding-right:8px;font-size:.8rem;white-space:nowrap}
+  .srv-table td.ctr{text-align:center}
+  .del-btn{width:24px;height:24px;border-radius:6px;background:#fef2f2;border:none;cursor:pointer;color:#e94560;display:flex;align-items:center;justify-content:center;font-size:.75rem;margin:auto;transition:.15s}
+  .del-btn:hover{background:#fee2e2}
+  .add-row-btn{display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:8px;border:1.5px dashed #e0e0e0;background:transparent;cursor:pointer;font-size:.72rem;font-weight:600;color:#bbb;transition:.15s;width:100%;margin-top:6px}
+  .add-row-btn:hover{border-color:#e94560;color:#e94560;background:#fef8f8}
+
+  /* Colonne droite — récap */
+  .modal-right{background:linear-gradient(170deg,#1a1a2e,#1e1e38);padding:18px;display:flex;flex-direction:column;gap:14px;overflow-y:auto;border-left:1px solid rgba(255,255,255,.04)}
+
+  .recap-label-top{font-size:.65rem;font-weight:800;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.09em;margin-bottom:6px}
+  .recap-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px}
+  .rl{color:rgba(255,255,255,.4);font-size:.71rem}
+  .rv{color:rgba(255,255,255,.75);font-size:.76rem;font-weight:600;font-family:monospace}
+  .recap-div{height:1px;background:rgba(255,255,255,.07);margin:8px 0}
+  .recap-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}
+  .rtl{color:rgba(255,255,255,.7);font-size:.78rem;font-weight:700}
+  .rtv{color:#e94560;font-size:1.2rem;font-weight:800;font-family:monospace}
+
+  /* Statut badge */
+  .stat-badge{display:flex;align-items:center;justify-content:center;gap:5px;padding:5px 10px;border-radius:20px;font-size:.68rem;font-weight:700;margin-top:2px;width:100%}
+  .sba{background:rgba(233,69,96,.15);color:#ff7f9a;border:1px solid rgba(233,69,96,.2)}
+  .sbb{background:rgba(253,203,110,.1);color:#ffd875;border:1px solid rgba(253,203,110,.15)}
+  .sbc{background:rgba(0,184,148,.12);color:#00d4a7;border:1px solid rgba(0,184,148,.18)}
+
+  /* Acompte */
+  .acompte-box{background:rgba(255,255,255,.05);border-radius:11px;padding:12px}
+  .acompte-box label{font-size:.62rem;font-weight:700;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:6px}
+  .acompte-box input{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.1);border-radius:8px;padding:8px 10px;font-size:.82rem;color:#fff;outline:none;font-family:monospace;width:100%}
+  .acompte-box input:focus{border-color:#e94560}
+  .reste-row{display:flex;justify-content:space-between;align-items:center;margin-top:7px}
+  .reste-lbl{color:rgba(255,255,255,.35);font-size:.67rem}
+  .reste-val{color:#fdcb6e;font-size:.82rem;font-weight:700;font-family:monospace}
+
+  /* Notes dans recap */
+  .recap-notes textarea{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.08);border-radius:9px;padding:9px 11px;font-size:.77rem;color:rgba(255,255,255,.6);width:100%;resize:none;min-height:70px;outline:none;font-family:inherit}
+  .recap-notes textarea:focus{border-color:#e94560}
+  .recap-notes label{font-size:.62rem;font-weight:700;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em;display:block;margin-bottom:5px}
+
+  /* Bouton submit en bas du recap */
+  .submit-btn{width:100%;padding:10px;border-radius:11px;border:none;background:linear-gradient(135deg,#e94560,#c0392b);color:#fff;font-size:.82rem;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(233,69,96,.35);margin-top:auto;display:flex;align-items:center;justify-content:center;gap:7px;transition:.15s}
+  .submit-btn:hover{opacity:.92;transform:translateY(-1px)}
+
+  .cancel-btn{width:100%;padding:8px;border-radius:10px;border:1.5px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.4);font-size:.75rem;font-weight:600;cursor:pointer;margin-top:6px;transition:.15s}
+  .cancel-btn:hover{border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.6)}
+</style>
+</head>
+<body>
+
+<!-- App en fond (floutée) -->
+<div class="app-bg">
+  <div class="sidebar">
+    <div class="s-logo">KS</div>
+    <div class="s-item active">📄</div>
+    <div class="s-item">👥</div>
+    <div class="s-item">📅</div>
+    <div class="s-item">💰</div>
+    <div class="s-item">📊</div>
+  </div>
+  <div class="app-main">
+    <div class="topbar-app">
+      <span class="t-title">Factures</span>
+      <button class="t-btn">+ Nouvelle facture</button>
+    </div>
+    <div class="app-content">
+      <div class="dummy-card"></div>
+      <div class="dummy-card"></div>
+      <div class="dummy-card"></div>
+      <div class="dummy-card"></div>
+      <div class="dummy-card"></div>
+      <div class="dummy-card"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Fenêtre flottante ── -->
+<div class="overlay">
+  <div class="modal">
+
+    <!-- Header -->
+    <div class="modal-header">
+      <div class="mh-icon">📄</div>
+      <div class="mh-info">
+        <div class="mh-title">Nouvelle Facture</div>
+        <div class="mh-sub">FKSP-20052026-001 · généré automatiquement</div>
+      </div>
+      <div class="mh-actions">
+        <button class="btn-ghost">🖨 Aperçu PDF</button>
+        <button class="btn-close">✕</button>
+      </div>
+    </div>
+
+    <!-- Body : 2 colonnes -->
+    <div class="modal-body">
+
+      <!-- ── Gauche ── -->
+      <div class="modal-left">
+
+        <!-- Infos générales -->
+        <div class="section-block">
+          <div class="section-label">Informations générales</div>
+          <div class="fields c3">
+            <div class="field">
+              <label class="fl">N° Facture</label>
+              <input readonly value="FKSP-20052026-001" style="font-family:monospace;color:#e94560;font-weight:700"/>
+            </div>
+            <div class="field">
+              <label class="fl req">Date</label>
+              <input type="date" value="2026-05-20"/>
+            </div>
+            <div class="field">
+              <label class="fl">Mode paiement</label>
+              <select>
+                <option>Espèces</option>
+                <option>Mobile Money</option>
+                <option>Orange Money</option>
+                <option>Virement</option>
+                <option>Chèque</option>
+              </select>
+            </div>
+            <div class="field s3">
+              <label class="fl req">Client</label>
+              <input list="clients" placeholder="Nom du client ou de la structure"/>
+              <datalist id="clients">
+                <option value="NKRUMAH Events"/><option value="Eglise Victoire"/>
+                <option value="LA VOIE AU TOGO"/><option value="MENSAH Kofi"/>
+              </datalist>
+            </div>
+          </div>
+
+          <!-- Section -->
+          <div>
+            <label class="fl" style="display:block;margin-bottom:6px">Section</label>
+            <div class="sect-row">
+              <button class="sect-btn on-sono"><em>🔊</em>Sonorisation</button>
+              <button class="sect-btn"><em>🎙️</em>Studio</button>
+              <button class="sect-btn"><em>📦</em>Location</button>
+              <button class="sect-btn"><em>🏢</em>Admin</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lignes de services -->
+        <div class="section-block">
+          <div class="section-label">Lignes de services</div>
+
+          <div>
+            <div style="font-size:.62rem;font-weight:700;color:#ccc;text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">Suggestions rapides</div>
+            <div class="chips">
+              <span class="chip">Sono Événement</span>
+              <span class="chip">Sono Mariage</span>
+              <span class="chip">Sono Concert</span>
+              <span class="chip">Studio Enregistrement</span>
+              <span class="chip">Mixage & Mastering</span>
+              <span class="chip">Location Matériel</span>
+              <span class="chip">Animation DJ</span>
+            </div>
+          </div>
+
+          <table class="srv-table">
+            <thead>
+              <tr>
+                <th style="width:38%">Description</th>
+                <th style="width:10%">Qté</th>
+                <th style="width:18%">Prix unit. HT</th>
+                <th style="width:16%" class="r">Total HT</th>
+                <th style="width:10%">TVA</th>
+                <th style="width:8%"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><input value="Sonorisation Gala annuel — Plein air" style="width:100%"/></td>
+                <td><input type="number" value="1" style="width:100%;text-align:center"/></td>
+                <td><input type="number" value="380000" style="width:100%;text-align:right;font-family:monospace"/></td>
+                <td class="tot">380 000</td>
+                <td class="ctr"><select style="font-size:.7rem;padding:5px 3px;border-radius:6px;border:1.5px solid #ebebeb"><option>0%</option><option>18%</option></select></td>
+                <td class="ctr"><button class="del-btn">✕</button></td>
+              </tr>
+              <tr>
+                <td><input value="Prolongation soirée — 2h" style="width:100%"/></td>
+                <td><input type="number" value="1" style="width:100%;text-align:center"/></td>
+                <td><input type="number" value="40000" style="width:100%;text-align:right;font-family:monospace"/></td>
+                <td class="tot">40 000</td>
+                <td class="ctr"><select style="font-size:.7rem;padding:5px 3px;border-radius:6px;border:1.5px solid #ebebeb"><option>0%</option><option>18%</option></select></td>
+                <td class="ctr"><button class="del-btn">✕</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <button class="add-row-btn">＋ Ajouter une ligne de service</button>
+        </div>
+
+      </div>
+
+      <!-- ── Droite — Récap dark ── -->
+      <div class="modal-right">
+
+        <div>
+          <div class="recap-label-top">Récapitulatif</div>
+          <div class="recap-row"><span class="rl">Sous-total HT</span><span class="rv">420 000 FCFA</span></div>
+          <div class="recap-row"><span class="rl">TVA (0%)</span><span class="rv">0 FCFA</span></div>
+          <div class="recap-div"></div>
+          <div class="recap-total">
+            <span class="rtl">TOTAL TTC</span>
+            <div style="text-align:right">
+              <span class="rtv">420 000</span>
+              <div style="font-size:.58rem;color:rgba(255,255,255,.2);text-align:right">FCFA</div>
+            </div>
+          </div>
+          <div class="stat-badge sba">● Non payée</div>
+        </div>
+
+        <!-- Acompte -->
+        <div class="acompte-box">
+          <label>Acompte / Avance reçue</label>
+          <input type="number" placeholder="0" value="100000"/>
+          <div class="reste-row">
+            <span class="reste-lbl">Reste dû</span>
+            <span class="reste-val">320 000 FCFA</span>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="recap-notes">
+          <label>Notes internes</label>
+          <textarea placeholder="Remarques, conditions..."></textarea>
+        </div>
+
+        <!-- Boutons -->
+        <div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;padding-top:10px">
+          <button class="submit-btn">✓ Enregistrer la facture</button>
+          <button class="cancel-btn">Annuler</button>
+        </div>
+
+      </div>
+    </div><!-- /modal-body -->
+  </div><!-- /modal -->
+</div><!-- /overlay -->
+
+</body>
+</html>

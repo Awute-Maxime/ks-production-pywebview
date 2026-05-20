@@ -13,6 +13,11 @@ import { formatFCFA, formatDate } from '@/lib/utils'
 
 const COLORS = ['#e94560','#0984e3','#6c5ce7','#00b894','#fdcb6e','#00cec9','#e17055','#a29bfe','#fd79a8','#00b894','#74b9ff','#636e72']
 
+function genNumeroClient(list: { numero: string }[]) {
+  const next = list.length + 1
+  return `CLI-${String(next).padStart(3, '0')}`
+}
+
 const DEMO_CLIENTS = [
   { id:1,  numero:'CLI-001', nom:'AWUTE Kossi',        adresse:'Lomé, Quartier Bè',     telephone:'92117715', email:'awute.kossi@gmail.com',      nif:'TG-2024-001', rccm:'RC-LME-001', nb_factures:4, total_ca:326000,  impayees:0, section:'Studio',       factures:[
     { numero:'FKSP-15052026-001', date:'2026-05-15', montant:150000, etat:'Partiel' },
@@ -95,11 +100,53 @@ function EtatBadge({ etat }: { etat: string }) {
   )
 }
 
+type ClientForm = { nom:string; adresse:string; telephone:string; email:string; nif:string; rccm:string; section:string }
+const EMPTY_FORM: ClientForm = { nom:'', adresse:'', telephone:'', email:'', nif:'', rccm:'', section:'Sonorisation' }
+
 export default function ClientsPage() {
+  const [clients, setClients]       = useState(DEMO_CLIENTS)
   const [search, setSearch]         = useState('')
   const [selectedId, setSelectedId] = useState<number>(DEMO_CLIENTS[0].id)
 
-  const clients = DEMO_CLIENTS.filter(c => {
+  const [showNew, setShowNew]       = useState(false)
+  const [editItem, setEditItem]     = useState<Client | null>(null)
+  const [deleteItem, setDeleteItem] = useState<Client | null>(null)
+  const [form, setForm]             = useState<ClientForm>(EMPTY_FORM)
+
+  const openNew  = () => { setForm(EMPTY_FORM); setShowNew(true) }
+  const openEdit = (c: Client) => {
+    setForm({ nom:c.nom, adresse:c.adresse, telephone:c.telephone, email:c.email, nif:c.nif||'', rccm:c.rccm||'', section:c.section })
+    setEditItem(c)
+  }
+
+  const handleCreate = () => {
+    if (!form.nom) return
+    const nouveau = {
+      id: Date.now(), numero: genNumeroClient(clients), nom: form.nom,
+      adresse: form.adresse, telephone: form.telephone, email: form.email,
+      nif: form.nif, rccm: form.rccm, section: form.section,
+      nb_factures: 0, total_ca: 0, impayees: 0, factures: [],
+    }
+    setClients(prev => [nouveau, ...prev])
+    setSelectedId(nouveau.id)
+    setShowNew(false)
+  }
+
+  const handleEdit = () => {
+    if (!editItem || !form.nom) return
+    setClients(prev => prev.map(c => c.id === editItem.id ? { ...c, ...form } : c))
+    setEditItem(null)
+  }
+
+  const handleDelete = () => {
+    if (!deleteItem) return
+    const remaining = clients.filter(c => c.id !== deleteItem.id)
+    setClients(remaining)
+    if (selectedId === deleteItem.id && remaining.length > 0) setSelectedId(remaining[0].id)
+    setDeleteItem(null)
+  }
+
+  const filtered = clients.filter(c => {
     if (!search) return true
     const q = search.toLowerCase()
     return c.nom.toLowerCase().includes(q) ||
@@ -108,18 +155,19 @@ export default function ClientsPage() {
            c.numero.toLowerCase().includes(q)
   })
 
-  const selected: Client | undefined = DEMO_CLIENTS.find(c => c.id === selectedId) || DEMO_CLIENTS[0]
-  const color = COLORS[(selected.id - 1) % COLORS.length]
-  const totalCA = DEMO_CLIENTS.reduce((s, c) => s + c.total_ca, 0)
-  const maxCA   = Math.max(...DEMO_CLIENTS.map(c => c.total_ca))
+  const selected: Client | undefined = clients.find(c => c.id === selectedId) || clients[0]
+  const color = selected ? COLORS[(clients.indexOf(selected)) % COLORS.length] : '#6c5ce7'
+  const totalCA = clients.reduce((s, c) => s + c.total_ca, 0)
+  const maxCA   = clients.length ? Math.max(...clients.map(c => c.total_ca)) : 1
 
   return (
     <div className="flex flex-col h-full">
       <Topbar
         title="Clients"
-        subtitle={`${DEMO_CLIENTS.length} clients · CA total ${formatFCFA(totalCA)}`}
+        subtitle={`${clients.length} clients · CA total ${formatFCFA(totalCA)}`}
         actions={
           <motion.button whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            onClick={openNew}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold"
             style={{ background: 'linear-gradient(135deg, #00cec9, #00b894)', boxShadow: '0 4px 12px rgba(0,206,201,0.3)' }}>
             <UserPlus size={15} /> Nouveau client
@@ -132,10 +180,10 @@ export default function ClientsPage() {
         {/* Stats */}
         <div className="grid grid-cols-4 gap-4 anim-fadeup shrink-0">
           {[
-            { label: 'Total clients',   value: DEMO_CLIENTS.length,   sub: 'enregistrés',               color: '#00cec9' },
+            { label: 'Total clients',   value: clients.length,   sub: 'enregistrés',               color: '#00cec9' },
             { label: 'CA total',        value: formatFCFA(totalCA),   sub: 'toutes périodes',            color: '#0984e3' },
-            { label: 'Avec impayés',    value: DEMO_CLIENTS.filter(c=>c.impayees>0).length, sub: 'clients à relancer', color: '#e94560' },
-            { label: 'Factures émises', value: DEMO_CLIENTS.reduce((s,c)=>s+c.nb_factures,0), sub: 'au total', color: '#6c5ce7' },
+            { label: 'Avec impayés',    value: clients.filter(c=>c.impayees>0).length, sub: 'clients à relancer', color: '#e94560' },
+            { label: 'Factures émises', value: clients.reduce((s,c)=>s+c.nb_factures,0), sub: 'au total', color: '#6c5ce7' },
           ].map(({ label, value, sub, color }) => (
             <div key={label} className="bg-white rounded-2xl px-4 py-3.5"
               style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.06)', border: '1px solid rgba(0,0,0,0.06)' }}>
@@ -170,7 +218,7 @@ export default function ClientsPage() {
 
             {/* Liste */}
             <div className="flex-1 overflow-y-auto scrollbar-hide">
-              {clients.map((client, i) => {
+              {filtered.map((client, i) => {
                 const c = COLORS[i % COLORS.length]
                 const isActive = client.id === selectedId
                 return (
@@ -205,7 +253,7 @@ export default function ClientsPage() {
                   </motion.div>
                 )
               })}
-              {clients.length === 0 && (
+              {filtered.length === 0 && (
                 <div className="text-center py-12 text-gray-400">
                   <Users size={28} className="mx-auto mb-2 opacity-30" />
                   <p className="text-sm">Aucun client</p>
@@ -215,7 +263,7 @@ export default function ClientsPage() {
 
             {/* Footer liste */}
             <div className="px-4 py-2.5 border-t border-gray-100 shrink-0">
-              <span className="text-[11px] text-gray-400">{clients.length} client{clients.length !== 1 ? 's' : ''}</span>
+              <span className="text-[11px] text-gray-400">{filtered.length} client{filtered.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
 

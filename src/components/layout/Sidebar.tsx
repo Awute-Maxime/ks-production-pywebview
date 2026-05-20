@@ -3,18 +3,17 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   LayoutDashboard, Receipt, FileText, ArrowLeftRight, Users, Clock,
   Bell, BarChart2, Grid, UserCog, Wrench, Package, Store,
   CreditCard, Settings, HardDrive, RotateCcw, LogOut, User,
-  Music, ChevronRight, DollarSign, Cog, Factory
+  Music, ChevronDown, DollarSign, Cog, Factory
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { authApi } from '@/lib/api/auth'
 
-// Liens directs — toujours visibles
 const DIRECT_LINKS = [
   { href: '/dashboard',  label: 'Dashboard',  icon: LayoutDashboard, color: '#e94560' },
   { href: '/factures',   label: 'Factures',   icon: Receipt,         color: '#0984e3' },
@@ -24,13 +23,13 @@ const DIRECT_LINKS = [
   { href: '/clients',    label: 'Clients',    icon: Users,           color: '#00cec9' },
 ]
 
-// Catégories avec flyout
 const CATEGORIES = [
   {
     id: 'finance',
     label: 'Finance',
     icon: DollarSign,
     color: '#0984e3',
+    adminOnly: false,
     items: [
       { href: '/paiements', label: 'Paiements',  icon: CreditCard },
       { href: '/relances',  label: 'Relances',   icon: Bell },
@@ -66,67 +65,22 @@ const CATEGORIES = [
   },
 ]
 
-function FlyoutPanel({ category, pathname }: { category: typeof CATEGORIES[0]; pathname: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, x: -8, scaleX: 0.95 }}
-      animate={{ opacity: 1, x: 0, scaleX: 1 }}
-      exit={{ opacity: 0, x: -8, scaleX: 0.95 }}
-      transition={{ duration: 0.18, ease: 'easeOut' }}
-      className="absolute left-full top-0 ml-2 w-48 rounded-2xl overflow-hidden z-50"
-      style={{
-        background: 'linear-gradient(145deg, #1e1e35, #16213e)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '8px 8px 32px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04)',
-      }}
-    >
-      {/* Header catégorie */}
-      <div className="px-4 py-3 border-b border-white/6 flex items-center gap-2">
-        <div className="w-5 h-5 rounded-md flex items-center justify-center"
-          style={{ background: `${category.color}25` }}>
-          <category.icon size={11} style={{ color: category.color }} />
-        </div>
-        <span className="text-white/70 text-[11px] font-bold uppercase tracking-widest">
-          {category.label}
-        </span>
-      </div>
-
-      {/* Items */}
-      <div className="p-2">
-        {category.items.map(({ href, label, icon: Icon, danger }) => {
-          const active = pathname === href || pathname?.startsWith(href + '/')
-          return (
-            <Link key={href} href={href}>
-              <div className={cn(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[12px] font-medium transition-all cursor-pointer',
-                active
-                  ? 'text-white font-semibold'
-                  : danger
-                  ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/10'
-                  : 'text-white/55 hover:text-white hover:bg-white/6',
-              )}
-                style={active ? { background: `${category.color}20`, color: category.color } : {}}
-              >
-                <Icon size={14} className="shrink-0" />
-                {label}
-                {active && (
-                  <div className="ml-auto w-1.5 h-1.5 rounded-full"
-                    style={{ background: category.color }} />
-                )}
-              </div>
-            </Link>
-          )
-        })}
-      </div>
-    </motion.div>
-  )
-}
-
 export default function Sidebar() {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
   const router = useRouter()
-  const [hoveredCat, setHoveredCat] = useState<string | null>(null)
+
+  const getDefaultOpen = () => {
+    const cat = CATEGORIES.find(c => c.items.some(i => pathname === i.href || pathname?.startsWith(i.href + '/')))
+    return cat?.id ?? null
+  }
+
+  const [openCat, setOpenCat] = useState<string | null>(getDefaultOpen)
+
+  useEffect(() => {
+    const cat = CATEGORIES.find(c => c.items.some(i => pathname === i.href || pathname?.startsWith(i.href + '/')))
+    if (cat) setOpenCat(cat.id)
+  }, [pathname])
 
   const handleLogout = async () => {
     try { await authApi.logout() } catch {}
@@ -134,7 +88,6 @@ export default function Sidebar() {
     router.push('/login')
   }
 
-  // Vérifie si une catégorie contient la page active
   const isCatActive = (cat: typeof CATEGORIES[0]) =>
     cat.items.some(i => pathname === i.href || pathname?.startsWith(i.href + '/'))
 
@@ -161,7 +114,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Nav principale */}
+      {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-3 px-3 scrollbar-hide">
 
         {/* Liens directs */}
@@ -172,11 +125,8 @@ export default function Sidebar() {
               <Link key={href} href={href}>
                 <div className={cn(
                   'flex items-center gap-3 px-3 py-2 rounded-xl text-[13px] font-medium transition-all cursor-pointer',
-                  active
-                    ? 'bg-white/10 text-white'
-                    : 'text-white/55 hover:text-white hover:bg-white/5'
+                  active ? 'bg-white/10 text-white' : 'text-white/55 hover:text-white hover:bg-white/5'
                 )}>
-                  {/* Icône colorée */}
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-all"
                     style={{
                       background: active ? `${color}30` : `${color}18`,
@@ -186,8 +136,7 @@ export default function Sidebar() {
                   </div>
                   <span>{label}</span>
                   {active && (
-                    <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
-                      style={{ background: color }} />
+                    <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                   )}
                 </div>
               </Link>
@@ -198,25 +147,23 @@ export default function Sidebar() {
         {/* Séparateur */}
         <div className="h-px bg-white/5 mx-1 mb-3" />
 
-        {/* Catégories avec flyout */}
+        {/* Catégories accordéon */}
         <div className="space-y-0.5">
           {CATEGORIES.map((cat) => {
             if (cat.adminOnly && user?.role !== 'Administrateur') return null
             const active = isCatActive(cat)
-            const open = hoveredCat === cat.id
+            const open = openCat === cat.id
 
             return (
-              <div key={cat.id} className="relative"
-                onMouseEnter={() => setHoveredCat(cat.id)}
-                onMouseLeave={() => setHoveredCat(null)}
-              >
-                <div className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all cursor-pointer select-none',
-                  open || active
-                    ? 'text-white bg-white/8'
-                    : 'text-white/50 hover:text-white hover:bg-white/5'
-                )}>
-                  {/* Icône colorée */}
+              <div key={cat.id}>
+                {/* Bouton catégorie */}
+                <button
+                  onClick={() => setOpenCat(open ? null : cat.id)}
+                  className={cn(
+                    'w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-all cursor-pointer select-none',
+                    open || active ? 'text-white bg-white/8' : 'text-white/50 hover:text-white hover:bg-white/5'
+                  )}
+                >
                   <div className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 transition-all"
                     style={{
                       background: open || active ? `${cat.color}25` : 'transparent',
@@ -227,7 +174,6 @@ export default function Sidebar() {
 
                   <span>{cat.label}</span>
 
-                  {/* Badge nombre d'items */}
                   <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full transition-all"
                     style={{
                       background: open || active ? `${cat.color}20` : 'rgba(255,255,255,0.06)',
@@ -236,15 +182,51 @@ export default function Sidebar() {
                     {cat.items.length}
                   </span>
 
-                  <ChevronRight size={11} className={cn(
-                    'transition-transform duration-200 text-white/25',
-                    open && 'rotate-90 text-white/60'
+                  <ChevronDown size={11} className={cn(
+                    'transition-transform duration-200 text-white/25 shrink-0',
+                    open && 'rotate-180 text-white/60'
                   )} />
-                </div>
+                </button>
 
-                {/* Flyout panel */}
-                <AnimatePresence>
-                  {open && <FlyoutPanel category={cat} pathname={pathname || ''} />}
+                {/* Sous-items accordéon */}
+                <AnimatePresence initial={false}>
+                  {open && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.2, ease: 'easeInOut' }}
+                      className="overflow-hidden"
+                    >
+                      <div className="mt-0.5 ml-3 pl-3 space-y-0.5 border-l"
+                        style={{ borderColor: `${cat.color}30` }}>
+                        {cat.items.map(({ href, label, icon: Icon, danger }: any) => {
+                          const itemActive = pathname === href || pathname?.startsWith(href + '/')
+                          return (
+                            <Link key={href} href={href}>
+                              <div className={cn(
+                                'flex items-center gap-2.5 px-3 py-2 rounded-xl text-[12px] font-medium transition-all cursor-pointer',
+                                itemActive
+                                  ? 'text-white font-semibold'
+                                  : danger
+                                  ? 'text-red-400/70 hover:text-red-400 hover:bg-red-500/10'
+                                  : 'text-white/50 hover:text-white hover:bg-white/5'
+                              )}
+                                style={itemActive ? { background: `${cat.color}18`, color: cat.color } : {}}
+                              >
+                                <Icon size={13} className="shrink-0" />
+                                {label}
+                                {itemActive && (
+                                  <div className="ml-auto w-1.5 h-1.5 rounded-full shrink-0"
+                                    style={{ background: cat.color }} />
+                                )}
+                              </div>
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
                 </AnimatePresence>
               </div>
             )
